@@ -1,0 +1,102 @@
+export type SupportedLanguage = 
+  | 'javascript' 
+  | 'typescript' 
+  | 'python' 
+  | 'java' 
+  | 'cpp' 
+  | 'csharp' 
+  | 'go' 
+  | 'rust';
+
+export interface LanguageConfig {
+  id: SupportedLanguage;
+  name: string;
+  monacoLanguage: string;
+  judge0Id: number;
+  icon: string;
+  defaultCode: string;
+}
+
+export interface UserPresence {
+  socketId: string;
+  userId?: string;
+  name: string;
+  color: string;
+  cursor?: {
+    lineNumber: number;
+    column: number;
+  };
+  selection?: {
+    startLineNumber: number;
+    startColumn: number;
+    endLineNumber: number;
+    endColumn: number;
+  };
+  isTyping?: boolean;
+}
+
+export interface MonacoDelta {
+  range: {
+    startLineNumber: number;
+    startColumn: number;
+    endLineNumber: number;
+    endColumn: number;
+  };
+  text: string;
+  rangeLength?: number;
+  rangeOffset?: number;
+}
+
+export interface CodeDeltaEvent {
+  roomId: string;
+  changes: MonacoDelta[];
+  fullCode: string;
+  version: number;
+  senderSocketId: string;
+}
+
+export interface RoomState {
+  roomId: string;
+  title: string;
+  language: SupportedLanguage;
+  code: string;
+  version: number;
+  users: UserPresence[];
+  createdAt: string;
+}
+
+export interface ExecutionResult {
+  stdout: string | null;
+  stderr: string | null;
+  compile_output: string | null;
+  message: string | null;
+  time: string | null;
+  memory: number | null;
+  status: {
+    id: number;
+    description: string;
+  };
+}
+
+export interface AIQuestion {
+  title: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  topic: string;
+  description: string;
+  examples: Array<{
+    input: string;
+    output: string;
+    explanation?: string;
+  }>;
+  constraints: string[];
+  starterCode: Record<SupportedLanguage, string>;
+}
+
+export interface AIFeedback {
+  correctness: string;
+  timeComplexity: string;
+  spaceComplexity: string;
+  hints: string[];
+  codeReview: string;
+  score?: number;
+}
