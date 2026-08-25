@@ -296,14 +296,6 @@ export const CandidateDashboardPage: React.FC = () => {
                       <Play className="w-3 h-3 fill-current" />
                       <span>Watch Replay</span>
                     </button>
-
-                    <button
-                      onClick={() => navigate(`/room/${s.roomId}`)}
-                      className="px-3.5 py-2 rounded-xl bg-cyan-600/80 hover:bg-cyan-600 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
-                    >
-                      <span>Re-enter Room</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </div>
               ))}

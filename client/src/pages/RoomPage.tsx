@@ -177,6 +177,23 @@ export const RoomPage: React.FC = () => {
   useEffect(() => {
     if (!roomId || !isAuthenticated || !user) return;
 
+    // Check if session was already ended to prevent re-entering closed rooms
+    apiFetch(`/api/sessions/room/${roomId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.session && data.session.endedAt) {
+          setCompletedSession({
+            sessionId: data.session.id,
+            score: data.session.score,
+            summary: data.session.summary,
+            problemName: data.session.problemName,
+            violationCount: data.session.violationCount,
+            endedAt: data.session.endedAt
+          });
+        }
+      })
+      .catch(() => {});
+
     socket.connect();
 
     socket.on('connect', () => {
@@ -1234,12 +1251,16 @@ export const RoomPage: React.FC = () => {
                     onChange={(e) => setSelectedTopic(e.target.value)}
                     className="w-full bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
                   >
+                    <option value="🎲 Random / Any Topic">🎲 Random / Any Topic</option>
                     <option value="Arrays & Hashing">Arrays & Hashing</option>
                     <option value="Two Pointers">Two Pointers</option>
                     <option value="Sliding Window">Sliding Window</option>
+                    <option value="Stack & Queues">Stack & Queues</option>
                     <option value="Binary Search">Binary Search</option>
+                    <option value="Linked Lists">Linked Lists</option>
                     <option value="Trees & Graphs">Trees & Graphs</option>
                     <option value="Dynamic Programming">Dynamic Programming</option>
+                    <option value="SQL Database Queries">SQL Database Queries</option>
                   </select>
                 </div>
 

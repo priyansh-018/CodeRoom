@@ -267,27 +267,11 @@ export const HostDashboardPage: React.FC = () => {
 
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={() => copyInviteLink(s.roomId)}
-                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold transition-all cursor-pointer"
-                      title="Copy Room Link"
-                    >
-                      {copiedRoom === s.roomId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-
-                    <button
                       onClick={() => navigate(`/replay/${s.id}`)}
                       className="px-3.5 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <Play className="w-3 h-3 fill-current" />
                       <span>Review Replay</span>
-                    </button>
-
-                    <button
-                      onClick={() => navigate(`/room/${s.roomId}`)}
-                      className="px-3.5 py-2 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
-                    >
-                      <span>Enter Room</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>

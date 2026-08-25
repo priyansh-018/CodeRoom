@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getSocket } from '../../services/socket';
 import type { UserRole } from '../../types';
 import { 
@@ -11,14 +11,19 @@ import {
   ShieldAlert, 
   Camera,
   UserCheck,
+  Volume2,
   VolumeX,
-  EyeOff
+  EyeOff,
+  Activity
 } from 'lucide-react';
 
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' }
   ]
 };
 
@@ -28,13 +33,16 @@ interface VideoConferenceProps {
   userRole?: UserRole;
   userAvatar?: string;
   autoRequestMedia?: boolean;
+  /** Fires whenever local or remote media streams change, so parent can record */
+  onStreamsReady?: (local: MediaStream | null, remote: MediaStream | null) => void;
 }
 
 export const VideoConference: React.FC<VideoConferenceProps> = ({
   roomId,
   userName,
   userRole = 'CANDIDATE',
-  autoRequestMedia = true
+  autoRequestMedia = true,
+  onStreamsReady
 }) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -44,6 +52,11 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
   const [isAudioEnabled, setIsAudioEnabled] = useState<boolean>(true);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [hasPermissionError, setHasPermissionError] = useState<string | null>(null);
+  const [autoplayBlocked, setAutoplayBlocked] = useState<boolean>(false);
+
+  // Real-time audio activity detection (visual speaking meters)
+  const [localIsSpeaking, setLocalIsSpeaking] = useState<boolean>(false);
+  const [remoteIsSpeaking, setRemoteIsSpeaking] = useState<boolean>(false);
 
   // Peer's Media State (e.g. Host seeing Candidate's camera/mic toggles)
   const [remoteVideoEnabled, setRemoteVideoEnabled] = useState<boolean>(true);
@@ -51,15 +64,70 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
+
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const isNegotiatingRef = useRef<boolean>(false);
 
+  const localAudioContextRef = useRef<AudioContext | null>(null);
+  const remoteAudioContextRef = useRef<AudioContext | null>(null);
+
   const socket = getSocket();
 
+  // Notify parent of stream availability for recording
+  React.useEffect(() => {
+    onStreamsReady?.(localStream, remoteStream);
+  }, [localStream, remoteStream, onStreamsReady]);
+
+  // Voice level analyzer setup for visual speaking indicator
+  const setupAudioAnalyzer = (
+    stream: MediaStream, 
+    onSpeakingChange: (isSpeaking: boolean) => void,
+    isRemote: boolean
+  ) => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const audioCtx = new AudioCtx();
+      if (isRemote) remoteAudioContextRef.current = audioCtx;
+      else localAudioContextRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      let isCancelled = false;
+
+      const checkVolume = () => {
+        if (isCancelled) return;
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        onSpeakingChange(average > 15);
+        requestAnimationFrame(checkVolume);
+      };
+
+      checkVolume();
+
+      return () => {
+        isCancelled = true;
+        audioCtx.close().catch(() => {});
+      };
+    } catch (e) {
+      console.warn('Audio analyzer error:', e);
+    }
+  };
+
   // Create PeerConnection
-  const getOrCreatePeerConnection = () => {
+  const getOrCreatePeerConnection = useCallback(() => {
     if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'closed') {
       return peerConnectionRef.current;
     }
@@ -67,26 +135,39 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     const pc = new RTCPeerConnection(RTC_CONFIG);
     peerConnectionRef.current = pc;
 
-    // Attach local media tracks (Candidate has video+audio; Host has audio)
+    // Attach local media tracks
     if (localStreamRef.current) {
+      const senders = pc.getSenders();
       localStreamRef.current.getTracks().forEach((track) => {
-        try {
-          pc.addTrack(track, localStreamRef.current!);
-        } catch (e) {
-          console.warn('Track already added', e);
+        if (!senders.some((s) => s.track === track)) {
+          try {
+            pc.addTrack(track, localStreamRef.current!);
+          } catch (e) {
+            console.warn('Track already added to PC', e);
+          }
         }
       });
     }
 
     // Remote Track Handler
     pc.ontrack = (event) => {
-      console.log('🎥 Remote track received:', event.track.kind, event.streams);
+      console.log('📡 Remote track received:', event.track.kind, event.streams);
       const incoming = event.streams[0] || new MediaStream([event.track]);
       setRemoteStream(incoming);
 
+      // Play through dedicated remote audio element
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = incoming;
+        remoteAudioRef.current.play().catch((e) => {
+          console.warn('Remote audio autoplay blocked:', e);
+          setAutoplayBlocked(true);
+        });
+      }
+
+      // Play through remote video element if video available
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = incoming;
-        remoteVideoRef.current.play().catch((e) => console.warn('Autoplay error', e));
+        remoteVideoRef.current.play().catch((e) => console.warn('Remote video autoplay error:', e));
       }
     };
 
@@ -104,6 +185,9 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
     pc.onconnectionstatechange = () => {
       console.log('📡 WebRTC connectionState:', pc.connectionState);
+      if (pc.connectionState === 'connected') {
+        setAutoplayBlocked(false);
+      }
     };
 
     pc.onsignalingstatechange = () => {
@@ -113,11 +197,10 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     };
 
     return pc;
-  };
+  }, [roomId, userName, userRole, socket]);
 
-  // Candidate initiates offer
-  const startCandidateOffer = async (targetSocketId?: string) => {
-    if (userRole !== 'CANDIDATE') return;
+  // Initiate WebRTC Offer
+  const sendOffer = useCallback(async (targetSocketId?: string) => {
     if (isNegotiatingRef.current) return;
 
     try {
@@ -129,7 +212,10 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
         return;
       }
 
-      const offer = await pc.createOffer();
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
       await pc.setLocalDescription(offer);
 
       socket.emit('webrtc-signal', {
@@ -140,10 +226,10 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
         senderRole: userRole
       });
     } catch (err) {
-      console.error('Candidate offer error:', err);
+      console.error('WebRTC sendOffer error:', err);
       isNegotiatingRef.current = false;
     }
-  };
+  }, [getOrCreatePeerConnection, roomId, userName, userRole, socket]);
 
   // Initialize Media Stream on mount
   useEffect(() => {
@@ -152,18 +238,36 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     const startMedia = async () => {
       try {
         setHasPermissionError(null);
+        let stream: MediaStream;
 
-        const constraints: MediaStreamConstraints = userRole === 'CANDIDATE'
-          ? {
-              video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-              audio: true
-            }
-          : {
-              video: false,
-              audio: true
-            };
+        const audioConstraints = {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        };
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        try {
+          const constraints: MediaStreamConstraints = userRole === 'CANDIDATE'
+            ? {
+                video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+                audio: audioConstraints
+              }
+            : {
+                video: false,
+                audio: audioConstraints
+              };
+
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (initialErr) {
+          console.warn('Full media capture failed, falling back to audio-only:', initialErr);
+          // Fallback to audio only
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: false,
+            audio: audioConstraints
+          });
+          setIsVideoEnabled(false);
+        }
+
         if (isCancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
@@ -172,19 +276,25 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
         localStreamRef.current = stream;
         setLocalStream(stream);
 
+        // Start local audio level detection
+        setupAudioAnalyzer(stream, setLocalIsSpeaking, false);
+
         // Attach Candidate's local camera stream
         if (userRole === 'CANDIDATE' && localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
 
-        // Initialize PeerConnection
+        // Initialize PeerConnection and add local tracks
         const pc = getOrCreatePeerConnection();
-
-        // Add tracks to PC
+        const senders = pc.getSenders();
         stream.getTracks().forEach((track) => {
-          try {
-            pc.addTrack(track, stream);
-          } catch (e) {}
+          if (!senders.some((s) => s.track === track)) {
+            try {
+              pc.addTrack(track, stream);
+            } catch (e) {
+              console.warn('Track addition notice:', e);
+            }
+          }
         });
 
         // Broadcast WebRTC readiness to room
@@ -194,20 +304,18 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
           name: userName
         });
 
-        // If candidate, send offer after brief delay
+        // If candidate, send offer after brief initialization
         if (userRole === 'CANDIDATE') {
           setTimeout(() => {
-            if (!isCancelled) startCandidateOffer();
-          }, 500);
+            if (!isCancelled) sendOffer();
+          }, 400);
         }
 
       } catch (err: any) {
         if (isCancelled) return;
-        console.warn('Camera/Mic permission failed', err);
+        console.warn('Camera/Mic permission failed:', err);
         setHasPermissionError(
-          userRole === 'CANDIDATE'
-            ? 'Candidate camera & mic access are required. Please allow permissions in your browser.'
-            : 'Microphone not detected. Please allow microphone permissions.'
+          'Microphone or camera permission was not granted. Please allow microphone access in your browser to enable live voice communication.'
         );
       }
     };
@@ -226,8 +334,14 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
       }
+      if (localAudioContextRef.current) {
+        localAudioContextRef.current.close().catch(() => {});
+      }
+      if (remoteAudioContextRef.current) {
+        remoteAudioContextRef.current.close().catch(() => {});
+      }
     };
-  }, [roomId, userRole]);
+  }, [roomId, userRole, autoRequestMedia, getOrCreatePeerConnection, sendOffer, userName, socket]);
 
   // Keep local stream connected to candidate preview
   useEffect(() => {
@@ -236,11 +350,23 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     }
   }, [localStream, userRole]);
 
-  // Keep remote stream connected to host view
+  // Keep remote stream connected to remote audio & video elements
   useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(() => {});
+    if (remoteStream) {
+      setupAudioAnalyzer(remoteStream, setRemoteIsSpeaking, true);
+
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch((e) => {
+          console.warn('Remote audio autoplay blocked:', e);
+          setAutoplayBlocked(true);
+        });
+      }
+
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+        remoteVideoRef.current.play().catch(() => {});
+      }
     }
   }, [remoteStream]);
 
@@ -250,7 +376,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       if (data.name) setRemoteParticipantName(data.name);
 
       if (userRole === 'CANDIDATE') {
-        setTimeout(() => startCandidateOffer(data.socketId), 300);
+        setTimeout(() => sendOffer(data.socketId), 300);
       }
     };
 
@@ -259,7 +385,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
         if (data.user.name) setRemoteParticipantName(data.user.name);
 
         if (userRole === 'CANDIDATE') {
-          setTimeout(() => startCandidateOffer(data.user.socketId), 300);
+          setTimeout(() => sendOffer(data.user.socketId), 300);
         }
       }
     };
@@ -284,8 +410,8 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       const pc = getOrCreatePeerConnection();
 
       try {
-        // 1. HOST RECEIVES CANDIDATE OFFER -> CREATES ANSWER
-        if (data.signal.type === 'offer' && userRole === 'HOST') {
+        // 1. RECEIVE OFFER -> CREATE ANSWER
+        if (data.signal.type === 'offer') {
           await pc.setRemoteDescription(new RTCSessionDescription(data.signal));
 
           // Drain queued ICE candidates
@@ -305,8 +431,8 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
             senderRole: userRole
           });
         }
-        // 2. CANDIDATE RECEIVES HOST ANSWER -> SETS REMOTE DESCRIPTION
-        else if (data.signal.type === 'answer' && userRole === 'CANDIDATE') {
+        // 2. RECEIVE ANSWER -> SET REMOTE DESCRIPTION
+        else if (data.signal.type === 'answer') {
           if (pc.signalingState === 'have-local-offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(data.signal));
 
@@ -325,7 +451,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
           }
         }
       } catch (err) {
-        console.error('Signal handling error:', err);
+        console.error('WebRTC Signal handling error:', err);
       }
     };
 
@@ -340,7 +466,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       socket.off('user-media-state', handleUserMediaState);
       socket.off('webrtc-signal', handleSignal);
     };
-  }, [roomId, userRole, userName, socket]);
+  }, [roomId, userRole, userName, socket, getOrCreatePeerConnection, sendOffer]);
 
   // Toggle Video Track
   const toggleVideo = () => {
@@ -380,12 +506,31 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     }
   };
 
+  // User click helper to unblock browser autoplay
+  const handleUnblockAudio = () => {
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.play().then(() => {
+        setAutoplayBlocked(false);
+      }).catch((e) => console.error('Audio unblock failed:', e));
+    }
+    if (remoteAudioContextRef.current && remoteAudioContextRef.current.state === 'suspended') {
+      remoteAudioContextRef.current.resume();
+    }
+  };
+
   return (
     <div className="flex flex-col bg-[#0d121f] border-b border-white/10 p-3 space-y-2 select-none">
+      {/* Hidden dedicated audio element for incoming voice stream */}
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <div className={`w-2 h-2 rounded-full ${remoteStream ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
           <span className="text-xs font-bold text-white flex items-center gap-1.5">
             <Camera className="w-3.5 h-3.5 text-indigo-400" />
             <span>
@@ -396,13 +541,27 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
           </span>
         </div>
 
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1 text-slate-400 hover:text-white rounded-md hover:bg-white/5 transition-colors cursor-pointer"
-          title={isCollapsed ? 'Expand Video' : 'Minimize Video'}
-        >
-          {isCollapsed ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Autoplay Unblock Alert */}
+          {autoplayBlocked && (
+            <button
+              onClick={handleUnblockAudio}
+              className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[10px] animate-bounce flex items-center gap-1 shadow-md shadow-emerald-500/20 cursor-pointer"
+              title="Click to enable incoming audio"
+            >
+              <Volume2 className="w-3 h-3" />
+              <span>Click to Enable Voice</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1 text-slate-400 hover:text-white rounded-md hover:bg-white/5 transition-colors cursor-pointer"
+            title={isCollapsed ? 'Expand Video' : 'Minimize Video'}
+          >
+            {isCollapsed ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+          </button>
+        </div>
       </div>
 
       {/* Permission Warning */}
@@ -444,10 +603,37 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
                   <span>Candidate (You) • {isVideoEnabled ? 'Camera Active' : 'Camera Off'}</span>
                 </div>
 
-                {!isAudioEnabled && (
+                {isAudioEnabled ? (
+                  <div className={`px-2 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-bold flex items-center gap-1 border transition-all ${
+                    localIsSpeaking 
+                      ? 'bg-emerald-950/90 text-emerald-300 border-emerald-400 shadow-md shadow-emerald-500/30' 
+                      : 'bg-black/70 text-slate-300 border-white/10'
+                  }`}>
+                    <Mic className={`w-3 h-3 ${localIsSpeaking ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
+                    <span>{localIsSpeaking ? 'Speaking...' : 'Mic Active'}</span>
+                  </div>
+                ) : (
                   <div className="px-2 py-0.5 rounded-md bg-rose-950/80 backdrop-blur-sm text-[10px] font-bold text-rose-300 flex items-center gap-1 border border-rose-500/40">
                     <MicOff className="w-3 h-3 text-rose-400" />
                     <span>Muted</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Remote Peer Voice Status on Candidate Screen */}
+              <div className="absolute bottom-2 right-2 flex items-center gap-2 z-10">
+                {remoteStream ? (
+                  <div className={`px-2.5 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-medium flex items-center gap-1.5 border ${
+                    remoteIsSpeaking 
+                      ? 'bg-cyan-950/90 text-cyan-200 border-cyan-400 shadow-md shadow-cyan-500/20' 
+                      : 'bg-black/70 text-slate-300 border-white/10'
+                  }`}>
+                    <Volume2 className={`w-3 h-3 ${remoteIsSpeaking ? 'text-cyan-400 animate-bounce' : 'text-slate-400'}`} />
+                    <span>Interviewer: {remoteParticipantName || 'Connected'}</span>
+                  </div>
+                ) : (
+                  <div className="px-2.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-medium text-slate-400 border border-white/10">
+                    <span>Waiting for Interviewer Audio...</span>
                   </div>
                 )}
               </div>
@@ -488,7 +674,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
                     <UserCheck className="w-5 h-5 animate-pulse" />
                   </div>
                   <span className="font-semibold text-white">Connecting Candidate Live Stream...</span>
-                  <span className="text-[11px] text-slate-400">Negotiating WebRTC stream with candidate</span>
+                  <span className="text-[11px] text-slate-400">Negotiating WebRTC audio & video stream</span>
                 </div>
               )}
 
@@ -498,6 +684,18 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
                   <div className="px-2.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-medium text-white flex items-center gap-1.5 border border-white/10">
                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                     <span>Candidate Feed: {remoteParticipantName || 'Candidate Live'}</span>
+                  </div>
+                )}
+
+                {/* Candidate Voice Activity Indicator */}
+                {remoteStream && (
+                  <div className={`px-2 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-bold flex items-center gap-1 border transition-all ${
+                    remoteIsSpeaking 
+                      ? 'bg-cyan-950/90 text-cyan-300 border-cyan-400 shadow-md shadow-cyan-500/30' 
+                      : 'bg-black/70 text-slate-300 border-white/10'
+                  }`}>
+                    <Volume2 className={`w-3 h-3 ${remoteIsSpeaking ? 'text-cyan-400 animate-bounce' : 'text-slate-400'}`} />
+                    <span>{remoteIsSpeaking ? 'Candidate Speaking...' : 'Candidate Mic On'}</span>
                   </div>
                 )}
 
@@ -518,10 +716,14 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
                 )}
               </div>
 
-              {/* Host audio indicator */}
-              <div className="absolute bottom-2 right-2 px-2.5 py-0.5 rounded-md bg-indigo-950/80 backdrop-blur-sm text-[10px] font-medium text-indigo-200 flex items-center gap-1.5 border border-indigo-500/30 z-10">
-                <Mic className="w-3 h-3 text-emerald-400" />
-                <span>Interviewer (You) • Voice Mic</span>
+              {/* Host audio speaking indicator */}
+              <div className={`absolute bottom-2 right-2 px-2.5 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-medium flex items-center gap-1.5 border z-10 transition-all ${
+                localIsSpeaking 
+                  ? 'bg-emerald-950/90 text-emerald-200 border-emerald-400 shadow-md shadow-emerald-500/20' 
+                  : 'bg-indigo-950/80 text-indigo-200 border-indigo-500/30'
+              }`}>
+                <Mic className={`w-3 h-3 ${localIsSpeaking ? 'text-emerald-400 animate-pulse' : 'text-indigo-400'}`} />
+                <span>Interviewer (You) • {localIsSpeaking ? 'Speaking...' : isAudioEnabled ? 'Voice Mic' : 'Muted'}</span>
               </div>
             </div>
           )}
@@ -536,12 +738,18 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
             onClick={toggleAudio}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
               isAudioEnabled
-                ? 'bg-white/10 hover:bg-white/15 text-white border border-white/10'
+                ? localIsSpeaking 
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20'
+                  : 'bg-white/10 hover:bg-white/15 text-white border border-white/10'
                 : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30'
             }`}
           >
-            {isAudioEnabled ? <Mic className="w-3.5 h-3.5 text-emerald-400" /> : <MicOff className="w-3.5 h-3.5 text-rose-400" />}
-            <span>{isAudioEnabled ? 'Microphone On' : 'Microphone Muted'}</span>
+            {isAudioEnabled ? (
+              <Mic className={`w-3.5 h-3.5 ${localIsSpeaking ? 'text-emerald-400 animate-pulse' : 'text-emerald-400'}`} />
+            ) : (
+              <MicOff className="w-3.5 h-3.5 text-rose-400" />
+            )}
+            <span>{isAudioEnabled ? (localIsSpeaking ? 'Microphone Active (Speaking)' : 'Microphone On') : 'Microphone Muted'}</span>
           </button>
 
           {/* Camera Toggle (Only for Candidate) */}
@@ -561,7 +769,14 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
         </div>
 
         <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2">
-          <span>{userRole === 'HOST' ? 'Host: Voice Mic' : 'Candidate: Camera + Mic'}</span>
+          {remoteStream ? (
+            <span className="flex items-center gap-1 text-emerald-400">
+              <Activity className="w-3 h-3 animate-pulse" />
+              <span>Voice Connected</span>
+            </span>
+          ) : (
+            <span>{userRole === 'HOST' ? 'Host: Voice Mic' : 'Candidate: Camera + Mic'}</span>
+          )}
           <span>•</span>
           <span>WebRTC P2P</span>
         </div>

@@ -61,16 +61,50 @@ export const Navbar: React.FC<NavbarProps> = ({
   isAiSession,
   userRole
 }) => {
-  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(roomTitle);
 
-  const handleCopyLink = () => {
+  const copyToClipboard = async (text: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (err) {
+      console.warn('navigator.clipboard failed, attempting fallback', err);
+    }
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return successful;
+    } catch (err) {
+      console.error('Fallback copy failed', err);
+      return false;
+    }
+  };
+
+  const handleCopyCode = async () => {
+    await copyToClipboard(roomId);
+    setCopiedCode(true);
+    onShowToast?.(`📋 Room code "${roomId}" copied to clipboard!`);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleCopyLink = async () => {
     const inviteUrl = `${window.location.origin}/room/${roomId}`;
-    navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    onShowToast?.(`📋 Room link copied to clipboard! Share with collaborators.`);
-    setTimeout(() => setCopied(false), 2500);
+    await copyToClipboard(inviteUrl);
+    setCopiedLink(true);
+    onShowToast?.(`📋 Invite link copied to clipboard! Share with collaborators.`);
+    setTimeout(() => setCopiedLink(false), 2500);
   };
 
   const handleTitleSubmit = (e?: React.FormEvent) => {
@@ -146,20 +180,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Room ID Badge & Copy */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-xs font-mono text-slate-300">
-            <span className="text-slate-500">room:</span>
-            <span className="text-indigo-300 font-medium">{roomId}</span>
-          </div>
+        {/* Room ID Badge & 1-Click Copy */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleCopyCode}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-500/40 text-xs font-mono text-slate-300 transition-all cursor-pointer group/room"
+            title={`Click to copy room code: ${roomId}`}
+          >
+            <span className="text-slate-500 select-none">room:</span>
+            <span className="text-indigo-300 font-semibold select-text group-hover/room:text-indigo-200">{roomId}</span>
+            {copiedCode ? (
+              <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+            ) : (
+              <Copy className="w-3 h-3 text-slate-500 group-hover/room:text-indigo-300 shrink-0 transition-colors" />
+            )}
+          </button>
 
           <button
             onClick={handleCopyLink}
             className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-medium transition-colors cursor-pointer"
-            title="Copy Invite Link"
+            title="Copy Full Invite Link (URL)"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied' : 'Invite'}</span>
+            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedLink ? 'Copied Link' : 'Invite'}</span>
           </button>
         </div>
 

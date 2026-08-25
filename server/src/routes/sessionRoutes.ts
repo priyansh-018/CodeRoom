@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { getSessions, getSessionById, saveSession } from '../controllers/sessionController.js';
+import { getSessions, getSessionById, getSessionByRoomId, saveSession } from '../controllers/sessionController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
 router.get('/', authenticateToken as any, getSessions as any);
+router.get('/room/:roomId', getSessionByRoomId as any);
 router.get('/:id', getSessionById as any);
 router.post('/', authenticateToken as any, saveSession as any);
 router.post('/end', authenticateToken as any, saveSession as any);

@@ -22,13 +22,16 @@ interface AiSetupModalProps {
 }
 
 const TOPICS = [
+  '🎲 Random / Any Topic',
   'Arrays & Hashing',
   'Two Pointers',
   'Sliding Window',
-  'Stack',
+  'Stack & Queues',
   'Binary Search',
+  'Linked Lists',
+  'Trees & Graphs',
   'Dynamic Programming',
-  'SQL'
+  'SQL Database Queries'
 ];
 
 export const AiSetupModal: React.FC<AiSetupModalProps> = ({
@@ -38,7 +41,7 @@ export const AiSetupModal: React.FC<AiSetupModalProps> = ({
 }) => {
   const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>('javascript');
   const [selectedDifficulty, setSelectedDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
-  const [selectedTopic, setSelectedTopic] = useState<string>('Arrays & Hashing');
+  const [selectedTopic, setSelectedTopic] = useState<string>('🎲 Random / Any Topic');
 
   if (!isOpen) return null;
 

@@ -7,19 +7,44 @@ export function setupRoomHandlers(io: Server) {
     console.log(`🔌 Client connected: ${socket.id}`);
 
     // Join room with authenticated credentials and role
-    socket.on('join-room', (data: { 
+    socket.on('join-room', async (data: { 
       roomId: string; 
-      user: { 
-        name: string; 
-        color: string; 
-        userId?: string;
-        role?: 'HOST' | 'CANDIDATE';
-        avatarUrl?: string;
-      }; 
-      initialLanguage?: string 
+      user: { userId?: string; name: string; role?: 'HOST' | 'CANDIDATE'; avatarUrl?: string; color?: string };
+      initialLanguage?: string;
     }) => {
       const { roomId, user, initialLanguage } = data;
       if (!roomId) return;
+
+      // Check if room has ended (in-memory or in database)
+      if (roomStore.isRoomEnded(roomId)) {
+        console.log(`🚫 Blocked join to ended room ${roomId} by user ${user.name}`);
+        socket.emit('room-ended', roomStore.getEndedSessionData(roomId));
+        return;
+      }
+
+      try {
+        const endedSession = await prisma.session.findFirst({
+          where: { roomId, endedAt: { not: null } }
+        });
+
+        if (endedSession) {
+          console.log(`🚫 Database indicates room ${roomId} has ended. Blocking entry.`);
+          const endedData = {
+            roomId,
+            sessionId: endedSession.id,
+            score: endedSession.score,
+            summary: endedSession.summary,
+            problemName: endedSession.problemName,
+            violationCount: endedSession.violationCount,
+            endedAt: endedSession.endedAt ? endedSession.endedAt.toISOString() : new Date().toISOString()
+          };
+          roomStore.endRoom(roomId, endedData);
+          socket.emit('room-ended', endedData);
+          return;
+        }
+      } catch (dbErr) {
+        // Continue if DB check fails
+      }
 
       socket.join(roomId);
 
@@ -170,7 +195,7 @@ export function setupRoomHandlers(io: Server) {
       violationCount?: number;
     }) => {
       console.log(`🏁 Room ${data.roomId} ended by host. Broadcasting completion...`);
-      io.to(data.roomId).emit('room-ended', {
+      const endedData = {
         roomId: data.roomId,
         sessionId: data.sessionId,
         score: data.score,
@@ -178,7 +203,9 @@ export function setupRoomHandlers(io: Server) {
         problemName: data.problemName,
         violationCount: data.violationCount,
         endedAt: new Date().toISOString()
-      });
+      };
+      roomStore.endRoom(data.roomId, endedData);
+      io.to(data.roomId).emit('room-ended', endedData);
     });
 
     // Delta Code Synchronization

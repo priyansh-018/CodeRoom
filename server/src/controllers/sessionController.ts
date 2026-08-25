@@ -138,9 +138,45 @@ export const saveSession = async (req: AuthRequest, res: Response): Promise<void
 
     console.log(`✅ Interview session saved [${session.id}] for Room: ${roomId} (Host: ${hostId}, Candidate: ${guestId}, Score: ${score})`);
 
+    // Lock the room in roomStore so no one can re-enter
+    roomStore.endRoom(roomId, {
+      roomId,
+      sessionId: session.id,
+      score: session.score,
+      summary: session.summary,
+      problemName: session.problemName,
+      violationCount: session.violationCount,
+      endedAt: session.endedAt ? session.endedAt.toISOString() : new Date().toISOString()
+    });
+
     res.status(201).json({ message: 'Session saved successfully', session });
   } catch (error: any) {
     console.error('saveSession error:', error);
     res.status(500).json({ error: 'Failed to save session' });
+  }
+};
+
+export const getSessionByRoomId = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const roomId = String(req.params.roomId);
+    const session = await prisma.session.findFirst({
+      where: { roomId },
+      orderBy: { startedAt: 'desc' },
+      include: {
+        host: { select: { id: true, name: true, email: true, avatarUrl: true, role: true } },
+        guest: { select: { id: true, name: true, email: true, avatarUrl: true, role: true } },
+        events: { orderBy: { timestamp: 'asc' } }
+      }
+    });
+
+    if (!session) {
+      res.status(404).json({ error: 'Session not found for room' });
+      return;
+    }
+
+    res.json({ session });
+  } catch (error: any) {
+    console.error('getSessionByRoomId error:', error);
+    res.status(500).json({ error: 'Failed to fetch session' });
   }
 };

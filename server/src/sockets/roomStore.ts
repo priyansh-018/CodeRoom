@@ -27,10 +27,13 @@ export interface StoredRoom {
   users: Map<string, RoomUser>;
   createdAt: Date;
   updatedAt: Date;
+  isEnded?: boolean;
+  endedSessionData?: any;
 }
 
 class RoomStore {
   private rooms: Map<string, StoredRoom> = new Map();
+  private endedRooms: Map<string, any> = new Map();
 
   public getOrCreateRoom(roomId: string, defaultTitle = 'Mock Interview Session', defaultLanguage = 'javascript', initialCode?: string): StoredRoom {
     if (!this.rooms.has(roomId)) {
@@ -43,15 +46,42 @@ class RoomStore {
         version: 1,
         users: new Map(),
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        isEnded: this.endedRooms.has(roomId),
+        endedSessionData: this.endedRooms.get(roomId)
       });
     }
 
-    return this.rooms.get(roomId)!;
+    const room = this.rooms.get(roomId)!;
+    if (this.endedRooms.has(roomId)) {
+      room.isEnded = true;
+      room.endedSessionData = this.endedRooms.get(roomId);
+    }
+    return room;
   }
 
   public getRoom(roomId: string): StoredRoom | undefined {
     return this.rooms.get(roomId);
+  }
+
+  public endRoom(roomId: string, sessionData: any): void {
+    this.endedRooms.set(roomId, sessionData);
+    const room = this.rooms.get(roomId);
+    if (room) {
+      room.isEnded = true;
+      room.endedSessionData = sessionData;
+      room.updatedAt = new Date();
+    }
+  }
+
+  public isRoomEnded(roomId: string): boolean {
+    if (this.endedRooms.has(roomId)) return true;
+    const room = this.rooms.get(roomId);
+    return !!(room && room.isEnded);
+  }
+
+  public getEndedSessionData(roomId: string): any {
+    return this.endedRooms.get(roomId) || this.rooms.get(roomId)?.endedSessionData;
   }
 
   public addUser(roomId: string, user: RoomUser): StoredRoom {
