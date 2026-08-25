@@ -1,12 +1,23 @@
 import { Server, Socket } from 'socket.io';
 import { roomStore, RoomUser } from './roomStore.js';
+import { prisma } from '../db.js';
 
 export function setupRoomHandlers(io: Server) {
   io.on('connection', (socket: Socket) => {
     console.log(`🔌 Client connected: ${socket.id}`);
 
-    // Join room
-    socket.on('join-room', (data: { roomId: string; user: { name: string; color: string; userId?: string }; initialLanguage?: string }) => {
+    // Join room with authenticated credentials and role
+    socket.on('join-room', (data: { 
+      roomId: string; 
+      user: { 
+        name: string; 
+        color: string; 
+        userId?: string;
+        role?: 'HOST' | 'CANDIDATE';
+        avatarUrl?: string;
+      }; 
+      initialLanguage?: string 
+    }) => {
       const { roomId, user, initialLanguage } = data;
       if (!roomId) return;
 
@@ -16,6 +27,8 @@ export function setupRoomHandlers(io: Server) {
         socketId: socket.id,
         userId: user.userId,
         name: user.name || 'Anonymous Coder',
+        role: user.role || 'CANDIDATE',
+        avatarUrl: user.avatarUrl,
         color: user.color || '#6366f1'
       };
 
@@ -24,7 +37,7 @@ export function setupRoomHandlers(io: Server) {
         room.language = initialLanguage;
       }
 
-      console.log(`👤 User "${roomUser.name}" (${socket.id}) joined room: ${roomId}`);
+      console.log(`👤 User "${roomUser.name}" [${roomUser.role}] (${socket.id}) joined room: ${roomId}`);
 
       // Send initial room snapshot to joining user
       socket.emit('room-state', {
@@ -48,6 +61,126 @@ export function setupRoomHandlers(io: Server) {
       });
     });
 
+    // WebRTC Peer Signaling (Offer / Answer / ICE Candidates for live video/audio)
+    socket.on('webrtc-signal', (data: { 
+      roomId: string; 
+      targetSocketId?: string; 
+      signal: any; 
+      senderName?: string;
+      senderRole?: string;
+    }) => {
+      const payload = {
+        fromSocketId: socket.id,
+        signal: data.signal,
+        senderName: data.senderName,
+        senderRole: data.senderRole
+      };
+
+      if (data.targetSocketId && data.targetSocketId !== 'broadcast') {
+        io.to(data.targetSocketId).emit('webrtc-signal', payload);
+      } else if (data.roomId) {
+        socket.to(data.roomId).emit('webrtc-signal', payload);
+      }
+    });
+
+    // Notify room that participant is ready for WebRTC stream
+    socket.on('webrtc-ready', (data: { roomId: string; role?: string; name?: string }) => {
+      socket.to(data.roomId).emit('webrtc-peer-ready', {
+        socketId: socket.id,
+        role: data.role,
+        name: data.name
+      });
+    });
+
+    // Notify room of media state changes (camera / microphone toggled)
+    socket.on('media-state-changed', (data: { 
+      roomId: string; 
+      videoEnabled: boolean; 
+      audioEnabled: boolean; 
+      senderRole?: string;
+      senderName?: string;
+    }) => {
+      socket.to(data.roomId).emit('user-media-state', {
+        socketId: socket.id,
+        videoEnabled: data.videoEnabled,
+        audioEnabled: data.audioEnabled,
+        senderRole: data.senderRole,
+        senderName: data.senderName
+      });
+    });
+
+    // Anti-Cheating & Proctoring Event
+    socket.on('proctoring-violation', async (data: { 
+      roomId: string; 
+      candidateName: string; 
+      candidateId?: string;
+      eventType: 'TAB_SWITCH' | 'WINDOW_BLUR' | 'FULLSCREEN_EXIT' | 'DEVTOOLS_ATTEMPT';
+      timestamp: string;
+      violationCount: number;
+    }) => {
+      console.warn(`🚨 PROCTORING VIOLATION in room ${data.roomId} by ${data.candidateName}: ${data.eventType}`);
+
+      // Broadcast high-priority alert to all users (especially Hosts) in the room
+      io.to(data.roomId).emit('proctor-alert', {
+        ...data,
+        message: `Candidate ${data.candidateName} switched away from the interview screen! (${data.eventType})`
+      });
+
+      // Persist event to database under active session
+      try {
+        const activeSession = await prisma.session.findFirst({
+          where: { roomId: data.roomId },
+          orderBy: { startedAt: 'desc' }
+        });
+
+        if (activeSession) {
+          await prisma.sessionEvent.create({
+            data: {
+              sessionId: activeSession.id,
+              type: 'PROCTOR_VIOLATION',
+              payload: {
+                candidateName: data.candidateName,
+                candidateId: data.candidateId,
+                eventType: data.eventType,
+                violationCount: data.violationCount
+              },
+              timestamp: new Date(data.timestamp)
+            }
+          });
+
+          await prisma.session.update({
+            where: { id: activeSession.id },
+            data: {
+              violationCount: { increment: 1 }
+            }
+          });
+        }
+      } catch (dbErr) {
+        console.error('Failed to log proctoring event to database', dbErr);
+      }
+    });
+
+    // End Interview Room by Host
+    socket.on('end-room', (data: {
+      roomId: string;
+      sessionId?: string;
+      score?: number;
+      summary?: string;
+      problemName?: string;
+      violationCount?: number;
+    }) => {
+      console.log(`🏁 Room ${data.roomId} ended by host. Broadcasting completion...`);
+      io.to(data.roomId).emit('room-ended', {
+        roomId: data.roomId,
+        sessionId: data.sessionId,
+        score: data.score,
+        summary: data.summary,
+        problemName: data.problemName,
+        violationCount: data.violationCount,
+        endedAt: new Date().toISOString()
+      });
+    });
+
     // Delta Code Synchronization
     socket.on('code-delta', (data: { roomId: string; changes: any[]; fullCode: string }) => {
       const { roomId, changes, fullCode } = data;
@@ -65,7 +198,11 @@ export function setupRoomHandlers(io: Server) {
     });
 
     // Cursor & Selection Awareness
-    socket.on('cursor-move', (data: { roomId: string; cursor?: { lineNumber: number; column: number }; selection?: { startLineNumber: number; startColumn: number; endLineNumber: number; endColumn: number } }) => {
+    socket.on('cursor-move', (data: { 
+      roomId: string; 
+      cursor?: { lineNumber: number; column: number }; 
+      selection?: { startLineNumber: number; startColumn: number; endLineNumber: number; endColumn: number } 
+    }) => {
       const { roomId, cursor, selection } = data;
       if (!roomId) return;
 
@@ -95,9 +232,28 @@ export function setupRoomHandlers(io: Server) {
       });
     });
 
+    // Room Title Update (Renaming by Host)
+    socket.on('update-room-title', (data: { roomId: string; title: string }) => {
+      const { roomId, title } = data;
+      if (!roomId || !title) return;
+      roomStore.updateTitle(roomId, title);
+      console.log(`📝 Room ${roomId} title updated to: "${title}" by ${socket.id}`);
+      io.to(roomId).emit('room-title-updated', { title });
+    });
+
+    // SQL Schema Sync
+    socket.on('update-sql-schema', (data: { roomId: string; schema: string }) => {
+      socket.to(data.roomId).emit('sql-schema-updated', { schema: data.schema });
+    });
+
     // Code Execution sync
     socket.on('execution-started', (data: { roomId: string; language: string; triggeredBy: string }) => {
       socket.to(data.roomId).emit('execution-started', data);
+    });
+
+    socket.on('code-run-result', (data: { roomId: string; result: any }) => {
+      console.log(`💻 Code execution finished in room: ${data.roomId}`);
+      io.to(data.roomId).emit('execution-finished', data.result);
     });
 
     socket.on('execution-finished', (data: { roomId: string; result: any }) => {

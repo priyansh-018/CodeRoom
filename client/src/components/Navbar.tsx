@@ -7,14 +7,19 @@ import {
   Sparkles, 
   Users, 
   RotateCcw, 
-  Settings2
+  Settings2,
+  Square,
+  Pencil,
+  FileText,
+  Database
 } from 'lucide-react';
-import type { SupportedLanguage, UserPresence } from '../types';
+import type { SupportedLanguage, UserPresence, UserRole } from '../types';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
 
 interface NavbarProps {
   roomId: string;
   roomTitle?: string;
+  onTitleChange?: (newTitle: string) => void;
   language: SupportedLanguage;
   onLanguageChange: (lang: SupportedLanguage) => void;
   onRunCode: () => void;
@@ -25,10 +30,19 @@ interface NavbarProps {
   users: UserPresence[];
   currentUserSocketId?: string;
   isConnected: boolean;
+  onShowToast?: (msg: string) => void;
+  onOpenProfile?: () => void;
+  onEndRoom?: () => void;
+  onOpenSqlSchema?: () => void;
+  onStopAiInterview?: () => void;
+  isAiSession?: boolean;
+  userRole?: UserRole;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   roomId,
+  roomTitle = 'Technical Coding Interview',
+  onTitleChange,
   language,
   onLanguageChange,
   onRunCode,
@@ -38,25 +52,46 @@ export const Navbar: React.FC<NavbarProps> = ({
   onResetCode,
   users,
   currentUserSocketId,
-  isConnected
+  isConnected,
+  onShowToast,
+  onOpenProfile,
+  onEndRoom,
+  onOpenSqlSchema,
+  onStopAiInterview,
+  isAiSession,
+  userRole
 }) => {
   const [copied, setCopied] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState(roomTitle);
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
+    const inviteUrl = `${window.location.origin}/room/${roomId}`;
+    navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    onShowToast?.(`📋 Room link copied to clipboard! Share with collaborators.`);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleTitleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = editTitleValue.trim();
+    if (trimmed && trimmed !== roomTitle && onTitleChange) {
+      onTitleChange(trimmed);
+      onShowToast?.(`✏️ Room renamed to: "${trimmed}"`);
+    }
+    setIsEditingTitle(false);
   };
 
   return (
     <header className="h-14 border-b border-white/10 bg-[#0d121f]/90 backdrop-blur-md px-4 flex items-center justify-between select-none z-30">
       {/* Left: Brand & Room Info */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         <a href="/" className="flex items-center gap-2 group">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform flex items-center justify-center">
             <Code2 className="w-5 h-5 text-white" />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col hidden xs:flex">
             <span className="text-sm font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent leading-none">
               CodeRoom
             </span>
@@ -64,7 +99,52 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </a>
 
-        <div className="h-5 w-px bg-white/10" />
+        <div className="h-5 w-px bg-white/10 hidden sm:block" />
+
+        {/* Room Name Banner (Editable for Host, Synchronized for Candidate) */}
+        <div className="flex items-center gap-1.5">
+          {isEditingTitle && userRole === 'HOST' ? (
+            <form onSubmit={handleTitleSubmit} className="flex items-center gap-1">
+              <input
+                type="text"
+                autoFocus
+                value={editTitleValue}
+                onChange={(e) => setEditTitleValue(e.target.value)}
+                onBlur={() => handleTitleSubmit()}
+                placeholder="Name this interview..."
+                className="px-2.5 py-1 rounded-md bg-slate-900 border border-indigo-500 text-xs font-bold text-white focus:outline-none w-44 sm:w-60 shadow-lg"
+              />
+              <button
+                type="submit"
+                className="p-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+                title="Save room name"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          ) : (
+            <div
+              onClick={() => {
+                if (userRole === 'HOST') {
+                  setEditTitleValue(roomTitle || 'Technical Coding Interview');
+                  setIsEditingTitle(true);
+                }
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-semibold transition-all ${
+                userRole === 'HOST'
+                  ? 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30 text-indigo-200 cursor-pointer group'
+                  : 'bg-white/5 border-white/10 text-slate-200 cursor-default'
+              }`}
+              title={userRole === 'HOST' ? 'Click to rename interview room' : 'Live Interview Session'}
+            >
+              <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span className="truncate max-w-[130px] sm:max-w-[210px] font-medium">{roomTitle || 'Technical Coding Interview'}</span>
+              {userRole === 'HOST' && (
+                <Pencil className="w-3 h-3 text-indigo-400 opacity-60 group-hover:opacity-100 ml-0.5" />
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Room ID Badge & Copy */}
         <div className="flex items-center gap-2">
@@ -84,7 +164,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Connection Status Pill */}
-        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/5 text-[11px]">
+        <div className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/5 text-[11px]">
           <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
           <span className="text-slate-400">{isConnected ? 'Connected' : 'Connecting...'}</span>
         </div>
@@ -118,7 +198,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
       </div>
 
-      {/* Right: Presence & Actions */}
+      {/* Right: Presence, AI, Run & Profile Avatar */}
       <div className="flex items-center gap-3">
         {/* Presence Avatars */}
         <div className="flex items-center -space-x-2">
@@ -143,28 +223,36 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             );
           })}
-          {users.length === 0 && (
-            <div className="text-xs text-slate-500 flex items-center gap-1">
-              <Users className="w-3.5 h-3.5" />
-              <span>Solo</span>
-            </div>
-          )}
         </div>
 
         <div className="h-5 w-px bg-white/10" />
 
-        {/* AI Interviewer Toggle */}
-        <button
-          onClick={onToggleAiPanel}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-            isAiPanelOpen
-              ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 border-purple-500/50 text-purple-200 shadow-md shadow-purple-500/20'
-              : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-          <span>AI Interviewer</span>
-        </button>
+        {/* AI Interviewer Toggle (Candidate Practice only, not for Host) */}
+        {userRole !== 'HOST' && (
+          <button
+            onClick={onToggleAiPanel}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+              isAiPanelOpen
+                ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 border-purple-500/50 text-purple-200 shadow-md shadow-purple-500/20'
+                : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <span>AI Interviewer</span>
+          </button>
+        )}
+
+        {/* SQL Schema & Tables Button (Visible when SQL mode is active) */}
+        {language === 'sql' && onOpenSqlSchema && (
+          <button
+            onClick={onOpenSqlSchema}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 shadow-md shadow-cyan-500/10 transition-all cursor-pointer"
+            title="Manage SQL Database Schema & Mock Tables"
+          >
+            <Database className="w-3.5 h-3.5 text-cyan-400" />
+            <span>SQL Tables</span>
+          </button>
+        )}
 
         {/* Run Code Button */}
         <button
@@ -175,6 +263,46 @@ export const Navbar: React.FC<NavbarProps> = ({
           <Play className={`w-3.5 h-3.5 fill-current ${isRunning ? 'animate-spin' : ''}`} />
           <span>{isRunning ? 'Running...' : 'Run Code'}</span>
         </button>
+
+        {/* Stop / Finish Solo AI Interview Button */}
+        {isAiSession && onStopAiInterview && (
+          <button
+            onClick={onStopAiInterview}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white shadow-md shadow-purple-600/25 transition-all cursor-pointer"
+            title="Stop and Submit AI Assessment for Evaluation"
+          >
+            <Square className="w-3.5 h-3.5 fill-current" />
+            <span>Stop AI Interview</span>
+          </button>
+        )}
+
+        {/* End Interview Room Button (HOST ONLY) */}
+        {userRole === 'HOST' && onEndRoom && (
+          <button
+            onClick={onEndRoom}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/25 transition-all cursor-pointer"
+            title="End Interview & Submit Scorecard"
+          >
+            <Square className="w-3.5 h-3.5 fill-current" />
+            <span>End Interview</span>
+          </button>
+        )}
+
+        {/* Profile Details & Photo Edit Button at Top Right Corner */}
+        {onOpenProfile && (
+          <>
+            <div className="h-5 w-px bg-white/10" />
+            <button
+              onClick={onOpenProfile}
+              className="p-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-500/40 transition-all cursor-pointer group"
+              title="View & Edit Profile / Photo"
+            >
+              <div className="w-7 h-7 rounded-md overflow-hidden bg-indigo-600 flex items-center justify-center font-bold text-white text-[11px]">
+                <Users className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+              </div>
+            </button>
+          </>
+        )}
       </div>
     </header>
   );

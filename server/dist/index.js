@@ -9,6 +9,10 @@ const socket_io_1 = require("socket.io");
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const roomHandler_js_1 = require("./sockets/roomHandler.js");
+const authRoutes_js_1 = __importDefault(require("./routes/authRoutes.js"));
+const sessionRoutes_js_1 = __importDefault(require("./routes/sessionRoutes.js"));
+const aiRoutes_js_1 = __importDefault(require("./routes/aiRoutes.js"));
+const codeRoutes_js_1 = __importDefault(require("./routes/codeRoutes.js"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -18,7 +22,12 @@ app.use((0, cors_1.default)({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express_1.default.json());
-// Basic health check
+// Register API Routes
+app.use('/api/auth', authRoutes_js_1.default);
+app.use('/api/sessions', sessionRoutes_js_1.default);
+app.use('/api/ai', aiRoutes_js_1.default);
+app.use('/api', codeRoutes_js_1.default);
+// Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',

@@ -2,6 +2,8 @@ export interface RoomUser {
   socketId: string;
   userId?: string;
   name: string;
+  role?: 'HOST' | 'CANDIDATE';
+  avatarUrl?: string;
   color: string;
   cursor?: {
     lineNumber: number;
@@ -32,15 +34,7 @@ class RoomStore {
 
   public getOrCreateRoom(roomId: string, defaultTitle = 'Mock Interview Session', defaultLanguage = 'javascript', initialCode?: string): StoredRoom {
     if (!this.rooms.has(roomId)) {
-      const defaultStarter = initialCode || `// Welcome to CodeRoom!
-// Start typing below to collaborate in real-time.
-
-function solution() {
-  console.log("Hello, collaborative interviewer!");
-}
-
-solution();
-`;
+      const defaultStarter = initialCode || '';
       this.rooms.set(roomId, {
         roomId,
         title: defaultTitle,
@@ -93,6 +87,13 @@ solution();
   public updateLanguage(roomId: string, language: string): StoredRoom {
     const room = this.getOrCreateRoom(roomId);
     room.language = language;
+    room.updatedAt = new Date();
+    return room;
+  }
+
+  public updateTitle(roomId: string, title: string): StoredRoom {
+    const room = this.getOrCreateRoom(roomId);
+    room.title = title;
     room.updatedAt = new Date();
     return room;
   }

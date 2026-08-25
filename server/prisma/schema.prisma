@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  HOST
+  CANDIDATE
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role      @default(CANDIDATE)
+  avatarUrl    String?   @db.Text
+  bio          String?   @db.Text
+  title        String?   @default("Software Engineer")
+  github       String?
+  linkedin     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdRooms Room[]    @relation("RoomCreator")
+  hostSessions Session[] @relation("HostSessions")
+  guestSessions Session[] @relation("GuestSessions")
+
+  @@map("users")
+}
+
+model Room {
+  id        String    @id @default(uuid())
+  title     String    @default("Technical Mock Interview")
+  language  String    @default("javascript")
+  code      String?   @db.Text
+  creatorId String?
+  creator   User?     @relation("RoomCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  sessions  Session[]
+
+  @@map("rooms")
+}
+
+model Session {
+  id          String         @id @default(uuid())
+  roomId      String
+  room        Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  hostId      String?
+  host        User?          @relation("HostSessions", fields: [hostId], references: [id], onDelete: SetNull)
+  guestId     String?
+  guest       User?          @relation("GuestSessions", fields: [guestId], references: [id], onDelete: SetNull)
+  language    String         @default("javascript")
+  problemName String?
+  summary     String?        @db.Text
+  score          Int?
+  violationCount Int            @default(0)
+  startedAt      DateTime       @default(now())
+  endedAt        DateTime?
+
+  events      SessionEvent[]
+
+  @@map("sessions")
+}
+
+enum EventType {
+  DELTA
+  RUN
+  AI_FEEDBACK
+  CHAT
+  CURSOR
+  PROCTOR_VIOLATION
+}
+
+model SessionEvent {
+  id        String    @id @default(uuid())
+  sessionId String
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  type      EventType
+  payload   Json
+  timestamp DateTime  @default(now())
+
+  @@index([sessionId, timestamp])
+  @@map("session_events")
+}

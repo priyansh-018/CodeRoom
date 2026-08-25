@@ -4,9 +4,26 @@ export type SupportedLanguage =
   | 'python' 
   | 'java' 
   | 'cpp' 
+  | 'c'
   | 'csharp' 
   | 'go' 
-  | 'rust';
+  | 'rust'
+  | 'ruby'
+  | 'php'
+  | 'swift'
+  | 'kotlin'
+  | 'scala'
+  | 'r'
+  | 'perl'
+  | 'haskell'
+  | 'lua'
+  | 'dart'
+  | 'elixir'
+  | 'clojure'
+  | 'bash'
+  | 'sql';
+
+export type UserRole = 'HOST' | 'CANDIDATE';
 
 export interface LanguageConfig {
   id: SupportedLanguage;
@@ -21,6 +38,8 @@ export interface UserPresence {
   socketId: string;
   userId?: string;
   name: string;
+  role?: UserRole;
+  avatarUrl?: string;
   color: string;
   cursor?: {
     lineNumber: number;
@@ -89,7 +108,7 @@ export interface AIQuestion {
     explanation?: string;
   }>;
   constraints: string[];
-  starterCode: Record<SupportedLanguage, string>;
+  starterCode: Partial<Record<SupportedLanguage, string>>;
 }
 
 export interface AIFeedback {
@@ -99,4 +118,15 @@ export interface AIFeedback {
   hints: string[];
   codeReview: string;
   score?: number;
+}
+
+export interface ProctorAlert {
+  id: string;
+  roomId: string;
+  candidateName: string;
+  candidateId?: string;
+  eventType: 'TAB_SWITCH' | 'WINDOW_BLUR' | 'FULLSCREEN_EXIT' | 'DEVTOOLS_ATTEMPT';
+  timestamp: string;
+  violationCount: number;
+  message: string;
 }

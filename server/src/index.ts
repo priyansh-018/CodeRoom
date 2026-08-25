@@ -4,6 +4,10 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { setupRoomHandlers } from './sockets/roomHandler.js';
+import authRoutes from './routes/authRoutes.js';
+import sessionRoutes from './routes/sessionRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import codeRoutes from './routes/codeRoutes.js';
 
 dotenv.config();
 
@@ -18,7 +22,23 @@ app.use(cors({
 
 app.use(express.json());
 
-// Basic health check
+// Root status endpoint
+app.get('/', (req, res) => {
+  res.json({
+    name: 'CodeRoom API & WebSocket Server',
+    status: 'online',
+    frontendUrl: 'http://localhost:5173',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      sessions: '/api/sessions',
+      ai: '/api/ai',
+      execute: '/api/execute'
+    }
+  });
+});
+
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -26,6 +46,12 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Mount API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api', codeRoutes);
 
 const server = http.createServer(app);
 
