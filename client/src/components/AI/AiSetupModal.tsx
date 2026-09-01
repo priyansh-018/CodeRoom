@@ -145,9 +145,6 @@ export const ASSESSMENT_TRACKS: DomainTrack[] = [
     defaultLang: 'sql',
     allowedLangs: [
       'sql',
-      'postgresql',
-      'mysql',
-      'sqlite',
       'python',
       'typescript',
       'javascript',

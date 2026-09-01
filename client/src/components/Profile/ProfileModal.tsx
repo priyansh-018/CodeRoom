@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   User, 
-  Mail, 
   Camera, 
   X, 
   Check, 
@@ -13,8 +12,7 @@ import {
   FileText, 
   Key, 
   Upload, 
-  Sparkles,
-  ShieldCheck
+  Sparkles
 } from 'lucide-react';
 
 interface ProfileModalProps {
