@@ -12,9 +12,7 @@ import {
   Zap,
   Settings,
   ShieldAlert,
-  Briefcase,
-  CheckCircle2,
-  Sparkles
+  Briefcase
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { ProfileModal } from '../components/Profile/ProfileModal';

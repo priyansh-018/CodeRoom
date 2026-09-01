@@ -13,7 +13,6 @@ import {
   GraduationCap,
   Bot,
   DoorOpen,
-  CheckCircle2,
   Sparkles
 } from 'lucide-react';
 import { apiFetch } from '../services/api';

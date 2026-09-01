@@ -18,6 +18,7 @@ import { SUPPORTED_LANGUAGES, getRandomColor } from '../utils/languages';
 import { 
   Sparkles, 
   Bot, 
+  Code2, 
   Lock, 
   Mail, 
   User, 
