@@ -12,11 +12,15 @@ import {
   Settings,
   GraduationCap,
   Bot,
-  DoorOpen
+  DoorOpen,
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 import { apiFetch } from '../services/api';
 import { ProfileModal } from '../components/Profile/ProfileModal';
 import { AiSetupModal } from '../components/AI/AiSetupModal';
+import { SupportModal } from '../components/Support/SupportModal';
+import { LifeBuoy } from 'lucide-react';
 import type { SupportedLanguage } from '../types';
 
 interface PastSession {
@@ -41,7 +45,11 @@ export const CandidateDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isAiSetupOpen, setIsAiSetupOpen] = useState<boolean>(false);
+  const [isSupportOpen, setIsSupportOpen] = useState<boolean>(false);
   const [roomCode, setRoomCode] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'live' | 'ai'>('live');
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [isCheckingRoom, setIsCheckingRoom] = useState<boolean>(false);
 
   useEffect(() => {
     apiFetch('/api/sessions')
@@ -53,10 +61,36 @@ export const CandidateDashboardPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleJoinRoom = (e: React.FormEvent) => {
+  const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (roomCode.trim()) {
-      navigate(`/room/${roomCode.trim()}`);
+    const cleanCode = roomCode.trim();
+    if (!cleanCode) return;
+
+    setIsCheckingRoom(true);
+    setJoinError(null);
+
+    try {
+      const res = await apiFetch(`/api/sessions/check-room/${cleanCode}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.exists) {
+          setJoinError(`Room "${cleanCode}" does not exist. Please check your room code with your interviewer.`);
+          setIsCheckingRoom(false);
+          return;
+        }
+        if (data.isEnded) {
+          setJoinError(`Interview room "${cleanCode}" has already ended.`);
+          setIsCheckingRoom(false);
+          return;
+        }
+        navigate(`/room/${cleanCode}`);
+      } else {
+        setJoinError('Could not verify room status. Please try again.');
+      }
+    } catch {
+      setJoinError('Failed to connect to server.');
+    } finally {
+      setIsCheckingRoom(false);
     }
   };
 
@@ -71,8 +105,20 @@ export const CandidateDashboardPage: React.FC = () => {
     );
   };
 
+  const liveSessions = sessions.filter((s) => !s.roomId?.startsWith('ai-mock'));
+  const aiSessions = sessions.filter((s) => {
+    if (!s.roomId?.startsWith('ai-mock')) return false;
+    const isDisqualified = 
+      s.score === 0 || 
+      (s.summary && s.summary.toLowerCase().includes('disqualified')) ||
+      (s.summary && s.summary.toLowerCase().includes('violation')) ||
+      (s.summary && s.summary.toLowerCase().includes('terminated'));
+    return !isDisqualified;
+  });
+  const displayedSessions = activeTab === 'live' ? liveSessions : aiSessions;
+
   return (
-    <div className="min-h-screen bg-[#070a11] text-slate-100 flex flex-col selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[#F4F4F0] text-[#0A0A0A] flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
       {/* Profile Edit Modal */}
       <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
 
@@ -83,41 +129,51 @@ export const CandidateDashboardPage: React.FC = () => {
         onLaunch={handleLaunchAi}
       />
 
+      {/* Help & Support Modal */}
+      <SupportModal
+        isOpen={isSupportOpen}
+        onClose={() => setIsSupportOpen(false)}
+      />
+
       {/* Navbar */}
-      <header className="h-16 border-b border-white/10 bg-[#0d121f]/90 backdrop-blur-md px-6 flex items-center justify-between z-20">
+      <header className="h-18 border-b border-black/5 bg-[#F4F4F0]/90 backdrop-blur-md px-6 sm:px-10 flex items-center justify-between z-20">
         <div className="flex items-center gap-3">
-          <a href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 p-0.5 flex items-center justify-center shadow-md shadow-cyan-500/20">
-              <Code2 className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-base font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              CodeRoom
-            </span>
+          <a href="/" className="flex items-center gap-2 text-2xl font-black tracking-tighter text-[#0A0A0A]">
+            Coderoom
           </a>
-          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-mono font-bold">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black text-[#72F000] text-[11px] font-mono font-bold">
             <GraduationCap className="w-3 h-3" />
-            <span>CANDIDATE PORTAL</span>
+            <span>CANDIDATE</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setIsSupportOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#EBEBE6] hover:bg-[#E2E2DC] text-neutral-800 font-bold text-xs transition-all cursor-pointer"
+            title="Help & Support"
+          >
+            <LifeBuoy className="w-3.5 h-3.5 text-neutral-700" />
+            <span className="hidden sm:inline">Help & Support</span>
+          </button>
+
+          <button
             onClick={() => setIsAiSetupOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-md shadow-purple-500/20 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#72F000] hover:bg-[#65D600] text-black font-extrabold text-xs shadow-sm transition-all cursor-pointer"
           >
             <Bot className="w-3.5 h-3.5" />
             <span>Practice with AI</span>
           </button>
 
-          <div className="h-5 w-px bg-white/10" />
+          <div className="h-5 w-px bg-black/10" />
 
           {/* Top Right User Profile Button */}
           <button
             onClick={() => setIsProfileOpen(true)}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer group"
+            className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#EBEBE6] hover:bg-[#E2E2DC] border border-black/5 transition-all cursor-pointer group"
             title="Edit Profile & Photo"
           >
-            <div className="w-7 h-7 rounded-lg overflow-hidden bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-white text-[11px] shadow-sm">
+            <div className="w-7 h-7 rounded-full overflow-hidden bg-black flex items-center justify-center font-bold text-[#72F000] text-[11px]">
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
               ) : (
@@ -125,14 +181,14 @@ export const CandidateDashboardPage: React.FC = () => {
               )}
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors leading-tight">
+              <span className="text-xs font-extrabold text-black leading-tight">
                 {user?.name || 'Candidate'}
               </span>
-              <span className="text-[10px] text-cyan-400 font-mono leading-none">
+              <span className="text-[10px] text-neutral-500 font-mono leading-none">
                 Candidate / Student
               </span>
             </div>
-            <Settings className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors ml-1" />
+            <Settings className="w-3.5 h-3.5 text-neutral-400 group-hover:text-black transition-colors ml-0.5" />
           </button>
 
           <button
@@ -140,7 +196,7 @@ export const CandidateDashboardPage: React.FC = () => {
               logout();
               navigate('/');
             }}
-            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+            className="p-2 rounded-full bg-[#EBEBE6] hover:bg-rose-100 border border-black/5 text-neutral-600 hover:text-rose-600 transition-all cursor-pointer"
             title="Log Out"
           >
             <LogOut className="w-4 h-4" />
@@ -152,25 +208,25 @@ export const CandidateDashboardPage: React.FC = () => {
       <main className="max-w-6xl w-full mx-auto px-6 py-8 space-y-8 flex-1">
         {/* Candidate Welcome Banner & Join Card */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Welcome & Info */}
-          <div className="md:col-span-2 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-cyan-950/30 via-[#0d121f] to-[#0d121f] border border-cyan-500/20 shadow-2xl flex flex-col justify-between space-y-4">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold">
-                <GraduationCap className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Student / Candidate Workspace</span>
+          {/* Welcome & Info (Matte Black Card) */}
+          <div className="md:col-span-2 p-7 sm:p-9 rounded-[28px] bg-[#0E0E0E] text-white shadow-xl flex flex-col justify-between space-y-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#72F000]/15 text-[#72F000] text-xs font-mono font-bold">
+                <Sparkles className="w-3.5 h-3.5 text-[#72F000]" />
+                <span>CANDIDATE WORKSPACE</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-                Welcome back, <span className="text-cyan-400">{user?.name || 'Candidate'}</span>
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white leading-tight">
+                Welcome back, <span className="text-[#72F000]">{user?.name || 'Candidate'}</span>
               </h1>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Ready for your technical interview? Join a live interview room using the code provided by your interviewer, or practice coding problems solo with the AI interviewer assistant.
+              <p className="text-sm text-neutral-400 leading-relaxed max-w-xl">
+                Ready for your technical interview? Join a live interview room using the code provided by your interviewer, or practice coding problems solo with the AI interviewer.
               </p>
             </div>
 
-            <div className="pt-2">
+            <div>
               <button
                 onClick={() => setIsAiSetupOpen(true)}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-600/20 transition-all flex items-center gap-2 cursor-pointer"
+                className="px-6 py-3 rounded-full bg-[#72F000] hover:bg-[#65D600] text-black font-extrabold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer tracking-tight"
               >
                 <Bot className="w-4 h-4" />
                 <span>Start Solo AI Mock Interview</span>
@@ -178,14 +234,14 @@ export const CandidateDashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Enter Room Card */}
-          <div className="p-6 rounded-3xl bg-[#0d121f] border border-white/10 shadow-2xl flex flex-col justify-between space-y-4">
-            <div className="space-y-1.5">
-              <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+          {/* Enter Room Card (Light Gray Card) */}
+          <div className="p-7 rounded-[28px] bg-[#EBEBE6] border border-black/5 shadow-sm flex flex-col justify-between space-y-5">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-2xl bg-black text-[#72F000] flex items-center justify-center">
                 <DoorOpen className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-bold text-white">Join Live Interview Room</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="text-base font-extrabold text-black tracking-tight">Join Live Room</h3>
+              <p className="text-xs text-neutral-600 leading-normal">
                 Paste the Room ID or invite code given by your interviewer.
               </p>
             </div>
@@ -195,106 +251,156 @@ export const CandidateDashboardPage: React.FC = () => {
                 type="text"
                 required
                 value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value)}
+                onChange={(e) => {
+                  setRoomCode(e.target.value);
+                  setJoinError(null);
+                }}
                 placeholder="e.g. room-9xuxfn"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+                className="w-full px-4 py-2.5 rounded-full bg-white border border-black/15 text-xs text-black placeholder-neutral-400 focus:outline-none focus:border-black font-mono shadow-inner"
               />
+
+              {joinError && (
+                <div className="p-2.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold leading-snug">
+                  {joinError}
+                </div>
+              )}
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isCheckingRoom}
+                className="w-full py-3 rounded-full bg-black hover:bg-neutral-800 disabled:opacity-50 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Enter Room</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>{isCheckingRoom ? 'Verifying Room...' : 'Enter Room'}</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#72F000]" />
               </button>
             </form>
           </div>
         </div>
 
-        {/* Practice & Interview History */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <History className="w-4 h-4 text-cyan-400" />
-              <span>Past Interview Records & Keystroke Replays</span>
-            </h2>
-            <span className="text-xs text-slate-500 font-mono">{sessions.length} records</span>
+        {/* Separated Practice & Interview History */}
+        <div className="space-y-4 pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <History className="w-5 h-5 text-black" />
+              <h2 className="text-xl font-black text-black tracking-tight">
+                Past Interview Records
+              </h2>
+            </div>
+
+            {/* Segmented Tab Controls */}
+            <div className="flex items-center p-1 rounded-full bg-[#EBEBE6] border border-black/5 text-xs font-bold">
+              <button
+                onClick={() => setActiveTab('live')}
+                className={`px-5 py-1.5 rounded-full transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === 'live'
+                    ? 'bg-black text-white shadow-sm'
+                    : 'text-neutral-600 hover:text-black'
+                }`}
+              >
+                <span>Live Interview Rooms</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-[#72F000] text-black text-[10px] font-mono font-black">
+                  {liveSessions.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('ai')}
+                className={`px-5 py-1.5 rounded-full transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === 'ai'
+                    ? 'bg-black text-white shadow-sm'
+                    : 'text-neutral-600 hover:text-black'
+                }`}
+              >
+                <span>AI Mock Practice</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-[#72F000] text-black text-[10px] font-mono font-black">
+                  {aiSessions.length}
+                </span>
+              </button>
+            </div>
           </div>
 
           {loading ? (
-            <div className="h-48 flex items-center justify-center text-slate-500 gap-2">
-              <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs">Loading records...</span>
+            <div className="h-48 flex items-center justify-center text-neutral-500 gap-2">
+              <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold">Loading records...</span>
             </div>
-          ) : sessions.length === 0 ? (
-            <div className="p-12 text-center rounded-3xl glass-panel space-y-3">
-              <Code2 className="w-8 h-8 text-slate-600 mx-auto" />
-              <h3 className="text-sm font-bold text-white">No interview records yet</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Join a live room with an interviewer or launch a self-paced AI practice session to test your data structures and algorithms skills.
+          ) : displayedSessions.length === 0 ? (
+            <div className="p-12 text-center rounded-[28px] bg-[#EBEBE6] border border-black/5 space-y-3">
+              <Code2 className="w-8 h-8 text-neutral-400 mx-auto" />
+              <h3 className="text-sm font-extrabold text-black">
+                {activeTab === 'live' ? 'No live interview records yet' : 'No AI mock practice records yet'}
+              </h3>
+              <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                {activeTab === 'live'
+                  ? 'When you participate in technical interviews with an interviewer, your completed sessions and replays will appear here.'
+                  : 'Practice coding problems with Claude AI to test your algorithmic problem solving.'}
               </p>
-              <button
-                onClick={() => setIsAiSetupOpen(true)}
-                className="px-5 py-2.5 rounded-xl bg-cyan-600 text-white font-semibold text-xs shadow-md transition-all hover:bg-cyan-500 cursor-pointer"
-              >
-                Start AI Practice Session
-              </button>
+              {activeTab === 'ai' && (
+                <button
+                  onClick={() => setIsAiSetupOpen(true)}
+                  className="px-6 py-2.5 rounded-full bg-black text-white font-extrabold text-xs shadow-md transition-all hover:bg-neutral-800 cursor-pointer"
+                >
+                  Start Solo AI Mock Interview
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">
-              {sessions.map((s) => (
+              {displayedSessions.map((s) => (
                 <div
                   key={s.id}
-                  className="p-4 sm:p-5 rounded-2xl glass-panel hover:border-cyan-500/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                  className="p-5 rounded-2xl bg-white border border-black/5 hover:border-black/20 shadow-sm transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
                 >
                   <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
-                        {s.problemName || 'Technical Coding Interview'}
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="text-base font-extrabold text-black group-hover:text-neutral-700 transition-colors">
+                        {s.problemName || (activeTab === 'ai' ? 'LeetCode Challenge' : 'Technical Coding Interview')}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-white/10 text-[10px] font-mono text-cyan-300 uppercase">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#EBEBE6] text-[10px] font-mono text-black font-bold uppercase">
                         {s.language}
                       </span>
                       {s.score !== undefined && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[10px] font-mono font-bold">
-                          {s.score}/100
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black ${
+                          s.score === 0 || (s.summary && s.summary.toLowerCase().includes('disqualified'))
+                            ? 'bg-rose-100 text-rose-700'
+                            : s.score >= 70
+                            ? 'bg-[#72F000] text-black'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          Score: {s.score}/100
                         </span>
                       )}
-                      {(s.violationCount || 0) > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20 text-[10px] font-mono font-bold">
-                          {s.violationCount} Strikes
+                      {/* Completed badge */}
+                      {(s.score !== undefined && s.score >= 70) || (s.summary && s.summary.toLowerCase().includes('completed')) ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#72F000] text-black text-[10px] font-mono font-black flex items-center gap-1">
+                          <span>Completed</span>
+                          <span>✓</span>
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
-                    <p className="text-xs text-slate-400 line-clamp-1">
-                      {s.summary || 'Real-time collaborative session with Monaco editor.'}
+                    <p className="text-xs text-neutral-600 line-clamp-1 max-w-2xl font-medium">
+                      {s.summary || 'Completed technical interview session.'}
                     </p>
 
-                    <div className="flex items-center gap-4 text-[11px] text-slate-500 font-mono pt-1">
-                      {s.interviewerName && (
-                        <div className="text-indigo-300 font-semibold">
-                          Interviewer: {s.interviewerName}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-slate-600" />
-                        <span>{new Date(s.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-600" />
+                    <div className="flex items-center gap-4 text-[11px] text-neutral-400 font-mono pt-0.5">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
                         <span>Room: {s.roomId}</span>
-                      </div>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>{new Date(s.createdAt).toLocaleDateString()}</span>
+                      </span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => navigate(`/replay/${s.id}`)}
-                      className="px-3.5 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 rounded-full bg-black hover:bg-neutral-800 text-white font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
-                      <Play className="w-3 h-3 fill-current" />
-                      <span>Watch Replay</span>
+                      <Play className="w-3 h-3 text-[#72F000]" />
+                      <span>Replay Session</span>
                     </button>
                   </div>
                 </div>

@@ -118,24 +118,21 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="h-14 border-b border-white/10 bg-[#0d121f]/90 backdrop-blur-md px-4 flex items-center justify-between select-none z-30">
+    <header className="h-14 border-b border-white/10 bg-[#0E0E0E] text-white px-4 flex items-center justify-between select-none z-30 font-['Plus_Jakarta_Sans',sans-serif]">
       {/* Left: Brand & Room Info */}
       <div className="flex items-center gap-3 sm:gap-4">
         <a href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-cyan-500 p-0.5 shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform flex items-center justify-center">
-            <Code2 className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex flex-col hidden xs:flex">
-            <span className="text-sm font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent leading-none">
-              CodeRoom
-            </span>
-            <span className="text-[10px] text-indigo-400 font-mono tracking-wider">LIVE SYNC</span>
-          </div>
+          <span className="text-base font-black tracking-tight text-white group-hover:text-[#72F000] transition-colors">
+            Coderoom
+          </span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#72F000] text-black font-mono font-black uppercase">
+            LIVE
+          </span>
         </a>
 
         <div className="h-5 w-px bg-white/10 hidden sm:block" />
 
-        {/* Room Name Banner (Editable for Host, Synchronized for Candidate) */}
+        {/* Room Name Banner */}
         <div className="flex items-center gap-1.5">
           {isEditingTitle && userRole === 'HOST' ? (
             <form onSubmit={handleTitleSubmit} className="flex items-center gap-1">
@@ -146,11 +143,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onChange={(e) => setEditTitleValue(e.target.value)}
                 onBlur={() => handleTitleSubmit()}
                 placeholder="Name this interview..."
-                className="px-2.5 py-1 rounded-md bg-slate-900 border border-indigo-500 text-xs font-bold text-white focus:outline-none w-44 sm:w-60 shadow-lg"
+                className="px-3 py-1 rounded-full bg-[#181818] border border-[#72F000] text-xs font-bold text-white focus:outline-none w-44 sm:w-60 shadow-lg"
               />
               <button
                 type="submit"
-                className="p-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+                className="p-1.5 rounded-full bg-[#72F000] text-black cursor-pointer"
                 title="Save room name"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -164,52 +161,59 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setIsEditingTitle(true);
                 }
               }}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold transition-all ${
                 userRole === 'HOST'
-                  ? 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30 text-indigo-200 cursor-pointer group'
-                  : 'bg-white/5 border-white/10 text-slate-200 cursor-default'
+                  ? 'bg-white/5 hover:bg-white/10 border-white/10 text-white cursor-pointer group'
+                  : 'bg-white/5 border-white/5 text-neutral-300 cursor-default'
               }`}
               title={userRole === 'HOST' ? 'Click to rename interview room' : 'Live Interview Session'}
             >
-              <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span className="truncate max-w-[130px] sm:max-w-[210px] font-medium">{roomTitle || 'Technical Coding Interview'}</span>
+              <FileText className="w-3.5 h-3.5 text-[#72F000] shrink-0" />
+              <span className="truncate max-w-[130px] sm:max-w-[210px]">{roomTitle || 'Technical Coding Interview'}</span>
               {userRole === 'HOST' && (
-                <Pencil className="w-3 h-3 text-indigo-400 opacity-60 group-hover:opacity-100 ml-0.5" />
+                <Pencil className="w-3 h-3 text-[#72F000] opacity-70 group-hover:opacity-100 ml-0.5" />
               )}
             </div>
           )}
         </div>
 
         {/* Room ID Badge & 1-Click Copy */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={handleCopyCode}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-500/40 text-xs font-mono text-slate-300 transition-all cursor-pointer group/room"
-            title={`Click to copy room code: ${roomId}`}
-          >
-            <span className="text-slate-500 select-none">room:</span>
-            <span className="text-indigo-300 font-semibold select-text group-hover/room:text-indigo-200">{roomId}</span>
-            {copiedCode ? (
-              <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-            ) : (
-              <Copy className="w-3 h-3 text-slate-500 group-hover/room:text-indigo-300 shrink-0 transition-colors" />
-            )}
-          </button>
+        {!isAiSession ? (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleCopyCode}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#181818] hover:bg-[#222222] border border-white/10 hover:border-[#72F000]/50 text-xs font-mono text-neutral-300 transition-all cursor-pointer group/room"
+              title={`Click to copy room code: ${roomId}`}
+            >
+              <span className="text-neutral-500 select-none">room:</span>
+              <span className="text-[#72F000] font-bold select-text">{roomId}</span>
+              {copiedCode ? (
+                <Check className="w-3.5 h-3.5 text-[#72F000] shrink-0" />
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-neutral-500 group-hover/room:text-[#72F000] shrink-0 transition-colors" />
+              )}
+            </button>
 
-          <button
-            onClick={handleCopyLink}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-medium transition-colors cursor-pointer"
-            title="Copy Full Invite Link (URL)"
-          >
-            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedLink ? 'Copied Link' : 'Invite'}</span>
-          </button>
-        </div>
+            <button
+              onClick={handleCopyLink}
+              className="flex items-center gap-1 px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold transition-colors cursor-pointer"
+              title="Copy Full Invite Link (URL)"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-[#72F000]" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedLink ? 'Copied' : 'Invite'}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#72F000]/15 border border-[#72F000]/30 text-[#72F000] text-[11px] font-mono font-bold">
+            <span className="w-2 h-2 rounded-full bg-[#72F000] animate-pulse" />
+            <span>AI Mock Assessment</span>
+          </div>
+        )}
 
         {/* Connection Status Pill */}
-        <div className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/5 text-[11px]">
-          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-          <span className="text-slate-400">{isConnected ? 'Connected' : 'Connecting...'}</span>
+        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/5 text-[11px] font-mono">
+          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#72F000] animate-pulse' : 'bg-rose-500'}`} />
+          <span className="text-neutral-400">{isConnected ? 'Connected' : 'Connecting...'}</span>
         </div>
       </div>
 
@@ -219,22 +223,22 @@ export const Navbar: React.FC<NavbarProps> = ({
           <select
             value={language}
             onChange={(e) => onLanguageChange(e.target.value as SupportedLanguage)}
-            className="appearance-none bg-slate-900/90 border border-white/15 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer shadow-inner hover:bg-slate-800 transition-colors"
+            className="appearance-none bg-[#181818] border border-white/10 rounded-full px-4 py-1.5 pr-8 text-xs font-bold text-white focus:outline-none focus:border-[#72F000] cursor-pointer hover:bg-[#202020] transition-colors"
           >
             {Object.values(SUPPORTED_LANGUAGES).map((lang) => (
-              <option key={lang.id} value={lang.id}>
+              <option key={lang.id} value={lang.id} className="bg-[#181818] text-white">
                 {lang.icon} {lang.name}
               </option>
             ))}
           </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-neutral-400">
             <Settings2 className="w-3.5 h-3.5" />
           </div>
         </div>
 
         <button
           onClick={onResetCode}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors cursor-pointer"
+          className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           title="Reset to starter template"
         >
           <RotateCcw className="w-4 h-4" />
@@ -244,64 +248,63 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Right: Presence, AI, Run & Profile Avatar */}
       <div className="flex items-center gap-3">
         {/* Presence Avatars */}
-        <div className="flex items-center -space-x-2">
-          {users.map((u) => {
-            const isMe = u.socketId === currentUserSocketId;
-            return (
-              <div
-                key={u.socketId}
-                className="relative group cursor-pointer"
-                title={`${u.name} ${isMe ? '(You)' : ''}`}
-              >
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shadow-md ring-2 ring-[#0d121f]"
-                  style={{ backgroundColor: u.color }}
-                >
-                  {u.name.slice(0, 2).toUpperCase()}
-                </div>
-                {/* Active Tooltip */}
-                <div className="absolute top-9 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center bg-slate-900 text-white text-[10px] py-1 px-2 rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
-                  <span>{u.name} {isMe ? '(You)' : ''}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {!isAiSession && (
+          <>
+            <div className="flex items-center -space-x-2">
+              {users.map((u) => {
+                const isMe = u.socketId === currentUserSocketId;
+                return (
+                  <div
+                    key={u.socketId}
+                    className="relative group cursor-pointer"
+                    title={`${u.name} ${isMe ? '(You)' : ''}`}
+                  >
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-black shadow-md ring-2 ring-[#0E0E0E]"
+                      style={{ backgroundColor: u.color || '#72F000' }}
+                    >
+                      {u.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="h-5 w-px bg-white/10" />
+          </>
+        )}
 
-        <div className="h-5 w-px bg-white/10" />
-
-        {/* AI Interviewer Toggle (Candidate Practice only, not for Host) */}
+        {/* AI Interviewer Toggle */}
         {userRole !== 'HOST' && (
           <button
             onClick={onToggleAiPanel}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold border transition-all cursor-pointer ${
               isAiPanelOpen
-                ? 'bg-gradient-to-r from-purple-600/30 to-indigo-600/30 border-purple-500/50 text-purple-200 shadow-md shadow-purple-500/20'
-                : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
+                ? 'bg-[#72F000] text-black border-[#72F000] shadow-sm'
+                : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-300'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <Sparkles className="w-3.5 h-3.5" />
             <span>AI Interviewer</span>
           </button>
         )}
 
-        {/* SQL Schema & Tables Button (Visible when SQL mode is active) */}
+        {/* SQL Schema Button */}
         {language === 'sql' && onOpenSqlSchema && (
           <button
             onClick={onOpenSqlSchema}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 shadow-md shadow-cyan-500/10 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-[#72F000]/15 hover:bg-[#72F000]/25 border border-[#72F000]/40 text-[#72F000] transition-all cursor-pointer"
             title="Manage SQL Database Schema & Mock Tables"
           >
-            <Database className="w-3.5 h-3.5 text-cyan-400" />
+            <Database className="w-3.5 h-3.5" />
             <span>SQL Tables</span>
           </button>
         )}
 
-        {/* Run Code Button */}
+        {/* Run Code Button (Electric Neon Green Pill) */}
         <button
           onClick={onRunCode}
           disabled={isRunning}
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-1.5 px-5 py-1.5 rounded-full text-xs font-black bg-[#72F000] hover:bg-[#65D600] text-black shadow-md shadow-[#72F000]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer tracking-tight"
         >
           <Play className={`w-3.5 h-3.5 fill-current ${isRunning ? 'animate-spin' : ''}`} />
           <span>{isRunning ? 'Running...' : 'Run Code'}</span>
@@ -311,7 +314,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {isAiSession && onStopAiInterview && (
           <button
             onClick={onStopAiInterview}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white shadow-md shadow-purple-600/25 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-extrabold bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-all cursor-pointer"
             title="Stop and Submit AI Assessment for Evaluation"
           >
             <Square className="w-3.5 h-3.5 fill-current" />
@@ -323,7 +326,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {userRole === 'HOST' && onEndRoom && (
           <button
             onClick={onEndRoom}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-600/25 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-extrabold bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-all cursor-pointer"
             title="End Interview & Submit Scorecard"
           >
             <Square className="w-3.5 h-3.5 fill-current" />
@@ -331,17 +334,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         )}
 
-        {/* Profile Details & Photo Edit Button at Top Right Corner */}
+        {/* Profile Details Button */}
         {onOpenProfile && (
           <>
             <div className="h-5 w-px bg-white/10" />
             <button
               onClick={onOpenProfile}
-              className="p-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-500/40 transition-all cursor-pointer group"
+              className="p-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all cursor-pointer group"
               title="View & Edit Profile / Photo"
             >
-              <div className="w-7 h-7 rounded-md overflow-hidden bg-indigo-600 flex items-center justify-center font-bold text-white text-[11px]">
-                <Users className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+              <div className="w-7 h-7 rounded-full overflow-hidden bg-[#72F000] text-black flex items-center justify-center font-bold text-[11px]">
+                <Users className="w-4 h-4 text-black group-hover:scale-110 transition-transform" />
               </div>
             </button>
           </>

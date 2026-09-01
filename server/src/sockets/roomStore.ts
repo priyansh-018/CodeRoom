@@ -60,6 +60,10 @@ class RoomStore {
     return room;
   }
 
+  public hasRoom(roomId: string): boolean {
+    return this.rooms.has(roomId);
+  }
+
   public getRoom(roomId: string): StoredRoom | undefined {
     return this.rooms.get(roomId);
   }

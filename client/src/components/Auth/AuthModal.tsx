@@ -55,40 +55,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#0d121f] border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-[#0E0E0E] text-white border border-white/10 rounded-[28px] p-7 sm:p-8 shadow-2xl relative space-y-5 font-['Plus_Jakarta_Sans',sans-serif]">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+          className="absolute top-6 right-6 text-neutral-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="space-y-1 text-center">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold mb-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Secure CodeRoom Portal</span>
+        <div className="space-y-1.5 text-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#72F000]/10 border border-[#72F000]/30 text-[#72F000] text-[11px] font-mono font-bold mb-1">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>CODEROOM AUTH</span>
           </div>
-          <h2 className="text-xl font-extrabold text-white">
-            {mode === 'login' ? 'Sign In to Your Account' : 'Create an Account'}
+          <h2 className="text-2xl font-extrabold tracking-tight text-white">
+            {mode === 'login' ? 'Welcome back' : 'Create your account'}
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-neutral-400">
             {mode === 'login'
-              ? 'Access your interview rooms, scorecards, and live sync.'
-              : 'Choose your account type to get started.'}
+              ? 'Enter your credentials to access your workspaces.'
+              : 'Join the next generation real-time coding platform.'}
           </p>
         </div>
 
         {/* Mode Switcher Tabs */}
-        <div className="grid grid-cols-2 p-1 rounded-xl bg-slate-900 border border-white/10 text-xs font-semibold">
+        <div className="grid grid-cols-2 p-1 rounded-full bg-[#1A1A1A] border border-white/5 text-xs font-bold">
           <button
             type="button"
             onClick={() => {
               setMode('login');
               setError(null);
             }}
-            className={`py-2 rounded-lg transition-all cursor-pointer ${
-              mode === 'login' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+            className={`py-2 rounded-full transition-all cursor-pointer ${
+              mode === 'login' 
+                ? 'bg-[#72F000] text-black shadow-sm font-extrabold' 
+                : 'text-neutral-400 hover:text-white'
             }`}
           >
             Sign In
@@ -99,35 +101,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setMode('register');
               setError(null);
             }}
-            className={`py-2 rounded-lg transition-all cursor-pointer ${
-              mode === 'register' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+            className={`py-2 rounded-full transition-all cursor-pointer ${
+              mode === 'register' 
+                ? 'bg-[#72F000] text-black shadow-sm font-extrabold' 
+                : 'text-neutral-400 hover:text-white'
             }`}
           >
-            Create Account
+            Sign Up
           </button>
         </div>
 
         {/* Role Picker (For Registration) */}
         {mode === 'register' && (
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-300 block">I am joining as a:</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider block">
+              I am joining as:
+            </label>
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => setRole('HOST')}
-                className={`p-3 rounded-2xl border flex flex-col items-center gap-1.5 text-center transition-all cursor-pointer ${
+                className={`p-3.5 rounded-2xl border flex flex-col items-center gap-2 text-center transition-all cursor-pointer ${
                   role === 'HOST'
-                    ? 'bg-gradient-to-b from-indigo-500/20 to-purple-500/20 border-indigo-400 ring-2 ring-indigo-500/30 text-white shadow-md'
-                    : 'bg-slate-900/60 border-white/10 text-slate-400 hover:border-white/20'
+                    ? 'bg-[#181818] border-[#72F000] ring-1 ring-[#72F000] text-white shadow-md'
+                    : 'bg-[#141414] border-white/5 text-neutral-400 hover:border-white/20'
                 }`}
               >
-                <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-300">
+                <div className={`p-2 rounded-xl ${role === 'HOST' ? 'bg-[#72F000] text-black' : 'bg-white/5 text-neutral-300'}`}>
                   <Briefcase className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold block">Interviewer (Host)</span>
-                  <span className="text-[10px] text-slate-400 leading-tight block mt-0.5">
-                    Conduct mock interviews & proctor
+                  <span className="text-xs font-extrabold block">Interviewer</span>
+                  <span className="text-[10px] text-neutral-400 leading-tight block mt-0.5">
+                    Conduct mock interviews
                   </span>
                 </div>
               </button>
@@ -135,19 +141,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="button"
                 onClick={() => setRole('CANDIDATE')}
-                className={`p-3 rounded-2xl border flex flex-col items-center gap-1.5 text-center transition-all cursor-pointer ${
+                className={`p-3.5 rounded-2xl border flex flex-col items-center gap-2 text-center transition-all cursor-pointer ${
                   role === 'CANDIDATE'
-                    ? 'bg-gradient-to-b from-cyan-500/20 to-indigo-500/20 border-cyan-400 ring-2 ring-cyan-500/30 text-white shadow-md'
-                    : 'bg-slate-900/60 border-white/10 text-slate-400 hover:border-white/20'
+                    ? 'bg-[#181818] border-[#72F000] ring-1 ring-[#72F000] text-white shadow-md'
+                    : 'bg-[#141414] border-white/5 text-neutral-400 hover:border-white/20'
                 }`}
               >
-                <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-300">
+                <div className={`p-2 rounded-xl ${role === 'CANDIDATE' ? 'bg-[#72F000] text-black' : 'bg-white/5 text-neutral-300'}`}>
                   <GraduationCap className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold block">Candidate / Student</span>
-                  <span className="text-[10px] text-slate-400 leading-tight block mt-0.5">
-                    Give interview & AI practice
+                  <span className="text-xs font-extrabold block">Candidate</span>
+                  <span className="text-[10px] text-neutral-400 leading-tight block mt-0.5">
+                    Join rooms & AI practice
                   </span>
                 </div>
               </button>
@@ -165,7 +171,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {mode === 'register' && (
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Full Name</label>
+              <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">Full Name</label>
               <div className="relative">
                 <input
                   type="text"
@@ -173,15 +179,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Alex Turing"
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000] transition-colors"
                 />
-                <User className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+                <User className="w-4 h-4 text-neutral-500 absolute left-3 top-3 pointer-events-none" />
               </div>
             </div>
           )}
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-300">Email Address</label>
+            <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">Email Address</label>
             <div className="relative">
               <input
                 type="email"
@@ -189,14 +195,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="developer@example.com"
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000] transition-colors"
               />
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+              <Mail className="w-4 h-4 text-neutral-500 absolute left-3 top-3 pointer-events-none" />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-300">Password</label>
+            <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">Password</label>
             <div className="relative">
               <input
                 type="password"
@@ -205,27 +211,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000] transition-colors"
               />
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+              <Lock className="w-4 h-4 text-neutral-500 absolute left-3 top-3 pointer-events-none" />
             </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-50 cursor-pointer"
+            className="w-full py-3.5 rounded-full bg-[#72F000] hover:bg-[#65D600] text-black font-extrabold text-sm shadow-lg shadow-[#72F000]/20 transition-all disabled:opacity-50 cursor-pointer tracking-tight"
           >
             {loading 
               ? 'Processing...' 
               : mode === 'login' 
-              ? 'Sign In to CodeRoom' 
+              ? 'Sign In' 
               : `Create ${role === 'HOST' ? 'Interviewer' : 'Candidate'} Account`}
           </button>
         </form>
 
         {/* Toggle Mode */}
-        <div className="text-center pt-1 text-xs text-slate-400">
+        <div className="text-center pt-1 text-xs text-neutral-400">
           {mode === 'login' ? (
             <span>
               Don't have an account?{' '}
@@ -235,7 +241,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   setMode('register');
                   setError(null);
                 }}
-                className="text-indigo-400 font-semibold hover:underline cursor-pointer"
+                className="text-[#72F000] font-bold hover:underline cursor-pointer"
               >
                 Sign Up
               </button>
@@ -249,7 +255,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   setMode('login');
                   setError(null);
                 }}
-                className="text-indigo-400 font-semibold hover:underline cursor-pointer"
+                className="text-[#72F000] font-bold hover:underline cursor-pointer"
               >
                 Sign In
               </button>

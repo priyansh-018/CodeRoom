@@ -40,7 +40,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const savedUser = localStorage.getItem('coderoom_user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
+  });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('coderoom_token'));
 
   useEffect(() => {
@@ -50,6 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .then((data) => {
           if (data && data.user) {
             setUser(data.user);
+            localStorage.setItem('coderoom_user', JSON.stringify(data.user));
             localStorage.setItem('coderoom_username', data.user.name);
           } else {
             logout();
@@ -76,6 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem('coderoom_token', data.token);
+      localStorage.setItem('coderoom_user', JSON.stringify(data.user));
       localStorage.setItem('coderoom_username', data.user.name);
       return { success: true };
     } catch (err: any) {
@@ -98,6 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem('coderoom_token', data.token);
+      localStorage.setItem('coderoom_user', JSON.stringify(data.user));
       localStorage.setItem('coderoom_username', data.user.name);
       return { success: true };
     } catch (err: any) {
@@ -118,6 +128,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setUser(data.user);
+      localStorage.setItem('coderoom_user', JSON.stringify(data.user));
       if (data.user?.name) {
         localStorage.setItem('coderoom_username', data.user.name);
       }
@@ -131,6 +142,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     setUser(null);
     localStorage.removeItem('coderoom_token');
+    localStorage.removeItem('coderoom_user');
     localStorage.removeItem('coderoom_username');
   };
 

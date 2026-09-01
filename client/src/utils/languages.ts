@@ -184,6 +184,107 @@ export const SUPPORTED_LANGUAGES: Record<SupportedLanguage, LanguageConfig> = {
     judge0Id: 82,
     icon: '🗄️',
     defaultCode: ''
+  },
+  html: {
+    id: 'html',
+    name: 'HTML5',
+    monacoLanguage: 'html',
+    judge0Id: 0,
+    icon: '🌐',
+    defaultCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Development Preview</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      text-align: center;
+      max-width: 480px;
+    }
+    h1 { color: #38bdf8; margin-top: 0; }
+    p { color: #94a3b8; line-height: 1.6; }
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #4f46e5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>CodeRoom Web Component</h1>
+    <p>Build, style, and inspect responsive HTML5 & CSS3 interfaces live.</p>
+    <button onclick="alert('Hello from CodeRoom Web Sandbox!')">Test Action</button>
+  </div>
+</body>
+</html>`
+  },
+  css: {
+    id: 'css',
+    name: 'CSS3',
+    monacoLanguage: 'css',
+    judge0Id: 0,
+    icon: '🎨',
+    defaultCode: `/* Modern Responsive CSS3 Stylesheet */
+:root {
+  --primary-color: #6366f1;
+  --bg-dark: #070a11;
+  --text-light: #f8fafc;
+  --card-bg: #0d121f;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-light);
+  margin: 0;
+  padding: 2rem;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -10px rgba(99, 102, 241, 0.3);
+}`
   }
 };
 

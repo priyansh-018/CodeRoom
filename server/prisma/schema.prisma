@@ -7,41 +7,55 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  HOST
-  CANDIDATE
-}
-
-model User {
+model Interviewer {
   id           String    @id @default(uuid())
   email        String    @unique
   name         String
   passwordHash String
-  role         Role      @default(CANDIDATE)
   avatarUrl    String?   @db.Text
   bio          String?   @db.Text
-  title        String?   @default("Software Engineer")
+  title        String?   @default("Senior Technical Interviewer")
+  company      String?   @default("CodeRoom Host")
   github       String?
   linkedin     String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  createdRooms Room[]    @relation("RoomCreator")
-  hostSessions Session[] @relation("HostSessions")
-  guestSessions Session[] @relation("GuestSessions")
+  createdRooms Room[]    @relation("InterviewerRooms")
+  sessions     Session[] @relation("InterviewerSessions")
 
-  @@map("users")
+  @@map("interviewers")
+}
+
+model Candidate {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  name           String
+  passwordHash   String
+  avatarUrl      String?   @db.Text
+  bio            String?   @db.Text
+  title          String?   @default("Software Engineering Candidate")
+  university     String?
+  graduationYear String?
+  github         String?
+  linkedin       String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  sessions       Session[] @relation("CandidateSessions")
+
+  @@map("candidates")
 }
 
 model Room {
-  id        String    @id @default(uuid())
-  title     String    @default("Technical Mock Interview")
-  language  String    @default("javascript")
-  code      String?   @db.Text
+  id        String       @id @default(uuid())
+  title     String       @default("Technical Mock Interview")
+  language  String       @default("javascript")
+  code      String?      @db.Text
   creatorId String?
-  creator   User?     @relation("RoomCreator", fields: [creatorId], references: [id], onDelete: SetNull)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  creator   Interviewer? @relation("InterviewerRooms", fields: [creatorId], references: [id], onDelete: SetNull)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   sessions  Session[]
 
@@ -49,22 +63,22 @@ model Room {
 }
 
 model Session {
-  id          String         @id @default(uuid())
-  roomId      String
-  room        Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  hostId      String?
-  host        User?          @relation("HostSessions", fields: [hostId], references: [id], onDelete: SetNull)
-  guestId     String?
-  guest       User?          @relation("GuestSessions", fields: [guestId], references: [id], onDelete: SetNull)
-  language    String         @default("javascript")
-  problemName String?
-  summary     String?        @db.Text
+  id             String         @id @default(uuid())
+  roomId         String
+  room           Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  hostId         String?
+  host           Interviewer?   @relation("InterviewerSessions", fields: [hostId], references: [id], onDelete: SetNull)
+  guestId        String?
+  guest          Candidate?     @relation("CandidateSessions", fields: [guestId], references: [id], onDelete: SetNull)
+  language       String         @default("javascript")
+  problemName    String?
+  summary        String?        @db.Text
   score          Int?
   violationCount Int            @default(0)
   startedAt      DateTime       @default(now())
   endedAt        DateTime?
 
-  events      SessionEvent[]
+  events         SessionEvent[]
 
   @@map("sessions")
 }

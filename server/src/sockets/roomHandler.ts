@@ -46,6 +46,18 @@ export function setupRoomHandlers(io: Server) {
         // Continue if DB check fails
       }
 
+      // For collaborative live interviews, candidates cannot join non-existent phantom rooms
+      const isAiRoom = roomId.startsWith('ai-mock');
+      const isHost = user.role === 'HOST';
+      if (!isAiRoom && !isHost && !roomStore.hasRoom(roomId)) {
+        console.log(`🚫 Candidate ${user.name} attempted to join non-existent room: ${roomId}`);
+        socket.emit('room-error', { 
+          error: 'ROOM_NOT_FOUND', 
+          message: `Room "${roomId}" does not exist. Please check your room code with your interviewer.` 
+        });
+        return;
+      }
+
       socket.join(roomId);
 
       const roomUser: RoomUser = {

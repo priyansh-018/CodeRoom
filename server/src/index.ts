@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import codeRoutes from './routes/codeRoutes.js';
+import supportRoutes from './routes/supportRoutes.js';
 
 dotenv.config();
 
@@ -33,7 +34,8 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       sessions: '/api/sessions',
       ai: '/api/ai',
-      execute: '/api/execute'
+      execute: '/api/execute',
+      support: '/api/support/contact'
     }
   });
 });
@@ -51,6 +53,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/support', supportRoutes);
 app.use('/api', codeRoutes);
 
 const server = http.createServer(app);

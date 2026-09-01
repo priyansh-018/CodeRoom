@@ -110,48 +110,48 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-xl bg-[#0d121f] border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-xl bg-[#0E0E0E] text-white border border-white/10 rounded-[28px] p-6 sm:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-6 font-['Plus_Jakarta_Sans',sans-serif]">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+          className="absolute top-6 right-6 text-neutral-400 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Modal Header */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 p-0.5 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <User className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-2xl bg-[#72F000] text-black flex items-center justify-center font-extrabold shadow-md">
+            <User className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-extrabold text-white">Your Profile Details</h2>
-            <p className="text-xs text-slate-400">View and update your personal info, photo, and developer credentials.</p>
+            <h2 className="text-xl font-extrabold text-white tracking-tight">Your Profile Details</h2>
+            <p className="text-xs text-neutral-400">View and update your personal info, photo, and developer credentials.</p>
           </div>
         </div>
 
         {/* Feedback Messages */}
         {error && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="p-3 rounded-2xl bg-[#72F000]/15 border border-[#72F000]/30 text-[#72F000] text-xs font-bold flex items-center gap-2">
+            <Check className="w-4 h-4 text-[#72F000] shrink-0" />
             <span>Profile details saved successfully!</span>
           </div>
         )}
 
         <form onSubmit={handleSave} className="space-y-5">
           {/* Avatar / Photo Section */}
-          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-4">
+          <div className="p-4 rounded-2xl bg-[#141414] border border-white/5 space-y-4">
             <div className="flex items-center gap-4">
               <div className="relative group">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border-2 border-indigo-500/40 overflow-hidden flex items-center justify-center text-white font-bold text-2xl shadow-xl">
+                <div className="w-20 h-20 rounded-2xl bg-[#1E1E1E] border-2 border-[#72F000]/40 overflow-hidden flex items-center justify-center text-white font-extrabold text-2xl shadow-xl">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -162,17 +162,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] gap-1 cursor-pointer"
+                  className="absolute inset-0 bg-black/70 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold gap-1 cursor-pointer"
                   title="Upload Photo"
                 >
-                  <Camera className="w-4 h-4" />
+                  <Camera className="w-4 h-4 text-[#72F000]" />
                   <span>Change</span>
                 </button>
               </div>
 
               <div className="space-y-1.5 flex-1">
-                <span className="text-xs font-bold text-white block">Profile Photo / Avatar</span>
-                <p className="text-[11px] text-slate-400">Upload a custom image from your device or pick a developer avatar.</p>
+                <span className="text-xs font-extrabold text-white block">Profile Photo / Avatar</span>
+                <p className="text-[11px] text-neutral-400">Upload a custom image or pick a developer avatar.</p>
 
                 <div className="flex items-center gap-2 pt-1">
                   <input
@@ -185,7 +185,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                    className="px-3.5 py-1.5 rounded-full bg-[#72F000] hover:bg-[#65D600] text-black text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>Upload Image</span>
@@ -194,167 +194,157 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                   <button
                     type="button"
                     onClick={() => setAvatarUrl(`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name || 'Dev')}_${Date.now()}`)}
-                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                    <Sparkles className="w-3.5 h-3.5 text-[#72F000]" />
                     <span>Random Bot</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Quick Preset Avatars Picker */}
-            <div className="space-y-1.5 pt-2 border-t border-white/5">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Or choose a preset avatar:</span>
+            {/* Avatar Gallery */}
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block">Preset Avatars</span>
               <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                {PRESET_AVATARS.map((preset, idx) => (
+                {PRESET_AVATARS.map((av, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => setAvatarUrl(preset.url)}
-                    className={`w-10 h-10 rounded-xl bg-slate-900 border p-1 transition-all cursor-pointer hover:scale-110 flex items-center justify-center ${
-                      avatarUrl === preset.url ? 'border-indigo-400 ring-2 ring-indigo-500/50' : 'border-white/10'
+                    onClick={() => setAvatarUrl(av.url)}
+                    className={`p-1 rounded-xl border transition-all cursor-pointer bg-[#1A1A1A] hover:scale-105 ${
+                      avatarUrl === av.url ? 'border-[#72F000] ring-1 ring-[#72F000]' : 'border-white/5 hover:border-white/20'
                     }`}
-                    title={preset.name}
+                    title={av.name}
                   >
-                    <img src={preset.url} alt={preset.name} className="w-full h-full object-contain rounded-lg" />
+                    <img src={av.url} alt={av.name} className="w-full h-auto rounded-lg aspect-square" />
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Personal Information Fields */}
+          {/* Form Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Full Name</label>
+              <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">Full Name</label>
               <div className="relative">
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Alex Rivera"
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000] transition-colors"
                 />
-                <User className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+                <User className="w-4 h-4 text-neutral-500 absolute left-3 top-3 pointer-events-none" />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Email Address (Read Only)</label>
-              <div className="relative">
-                <input
-                  type="email"
-                  disabled
-                  value={user?.email || ''}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900/40 border border-white/5 text-xs text-slate-400 cursor-not-allowed"
-                />
-                <Mail className="w-4 h-4 text-slate-600 absolute left-3 top-3 pointer-events-none" />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Professional Title</label>
+              <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">Role Title / Designation</label>
               <div className="relative">
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Full Stack Engineer"
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  placeholder="e.g. Senior Backend Engineer"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000] transition-colors"
                 />
-                <Briefcase className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">GitHub Username</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={github}
-                  onChange={(e) => setGithub(e.target.value)}
-                  placeholder="e.g. octocat"
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
-                <Globe className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+                <Briefcase className="w-4 h-4 text-neutral-500 absolute left-3 top-3 pointer-events-none" />
               </div>
             </div>
           </div>
 
+          {/* Bio */}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-300">LinkedIn URL / Handle</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={linkedin}
-                onChange={(e) => setLinkedin(e.target.value)}
-                placeholder="e.g. linkedin.com/in/username"
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-              />
-              <Link2 className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-300">Short Bio / Target Roles</label>
+            <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">Bio / Background</label>
             <div className="relative">
               <textarea
                 rows={2}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                placeholder="Practicing DSA and System Design interviews for tier-1 tech companies."
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 custom-scrollbar resize-none"
+                placeholder="Tell others about your technical interests, algorithms, and projects..."
+                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000] transition-colors resize-none"
               />
-              <FileText className="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+              <FileText className="w-4 h-4 text-neutral-500 absolute left-3 top-3 pointer-events-none" />
             </div>
           </div>
 
-          {/* Expandable Password Change */}
-          <div className="pt-2 border-t border-white/10">
+          {/* Social Links */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">GitHub Username / URL</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={github}
+                  onChange={(e) => setGithub(e.target.value)}
+                  placeholder="e.g. github.com/username"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000] transition-colors"
+                />
+                <Globe className="w-4 h-4 text-neutral-500 absolute left-3 top-3 pointer-events-none" />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">LinkedIn Profile</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={linkedin}
+                  onChange={(e) => setLinkedin(e.target.value)}
+                  placeholder="e.g. linkedin.com/in/username"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000] transition-colors"
+                />
+                <Link2 className="w-4 h-4 text-neutral-500 absolute left-3 top-3 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Password Security Accordion */}
+          <div className="pt-2 border-t border-white/5 space-y-3">
             <button
               type="button"
               onClick={() => setShowPasswordSection(!showPasswordSection)}
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1.5 cursor-pointer"
+              className="text-xs font-bold text-[#72F000] hover:underline flex items-center gap-1.5 cursor-pointer"
             >
               <Key className="w-3.5 h-3.5" />
-              <span>{showPasswordSection ? 'Hide Change Password' : 'Change Password'}</span>
+              <span>{showPasswordSection ? 'Hide Password Settings' : 'Change Password'}</span>
             </button>
 
             {showPasswordSection && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 animate-in fade-in">
+              <div className="p-4 rounded-2xl bg-[#141414] border border-white/5 space-y-3 animate-in fade-in duration-150">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Current Password</label>
+                  <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">Current Password</label>
                   <input
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    placeholder="Enter current password"
+                    className="w-full px-3.5 py-2 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000]"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">New Password</label>
+                  <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider">New Password</label>
                   <input
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    placeholder="At least 6 characters"
+                    className="w-full px-3.5 py-2 rounded-xl bg-[#161616] border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#72F000]"
                   />
                 </div>
               </div>
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+          {/* Modal Actions */}
+          <div className="flex items-center justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              className="px-5 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-xs font-bold text-neutral-300 transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -362,10 +352,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              className="px-6 py-2.5 rounded-full bg-[#72F000] hover:bg-[#65D600] text-black font-extrabold text-xs shadow-md shadow-[#72F000]/20 transition-all disabled:opacity-50 cursor-pointer tracking-tight"
             >
-              <ShieldCheck className="w-4 h-4" />
-              <span>{loading ? 'Saving Changes...' : 'Save Profile'}</span>
+              {loading ? 'Saving...' : 'Save Profile Changes'}
             </button>
           </div>
         </form>

@@ -5,8 +5,8 @@ const router = Router();
 
 router.post('/generate-question', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { topic = 'Arrays & Hashing', difficulty = 'Medium', language = 'javascript' } = req.body;
-    const question = await generateQuestion(topic, difficulty, language);
+    const { topic = 'Arrays & Hashing', difficulty = 'Medium', language = 'javascript', excludeTitles = [] } = req.body;
+    const question = await generateQuestion(topic, difficulty, language, Array.isArray(excludeTitles) ? excludeTitles : []);
     res.json(question);
   } catch (error: any) {
     console.error('generate-question route error:', error);
