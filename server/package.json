@@ -9,8 +9,7 @@
     "render-build": "npx prisma generate && npx tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push",
-    "postinstall": "prisma generate"
+    "prisma:push": "prisma db push"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
