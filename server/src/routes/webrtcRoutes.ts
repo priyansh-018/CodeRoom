@@ -23,7 +23,7 @@ router.get('/ice-servers', async (req, res) => {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 4000);
         const response = await fetch(
-          `https://${meteredAppName}.metered.ca/api/v1/turn/credentials?apiKey=${meteredApiKey}`,
+          `https://code_room.metered.live/api/v1/turn/credentials?apiKey=94cc41a856d9b225516f6e158686e876a10e`,
           { signal: controller.signal }
         );
         clearTimeout(timeout);
