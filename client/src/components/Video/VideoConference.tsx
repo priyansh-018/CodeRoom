@@ -22,9 +22,18 @@ const RTC_CONFIG: RTCConfiguration = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' }
-  ]
+    { urls: 'stun:global.stun.twilio.com:3478' },
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp'
+      ],
+      username: 'openrelay',
+      credential: 'openrelay'
+    }
+  ],
+  iceCandidatePoolSize: 10
 };
 
 interface VideoConferenceProps {
@@ -68,6 +77,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream>(new MediaStream());
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const isNegotiatingRef = useRef<boolean>(false);
 
@@ -151,22 +161,37 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
     // Remote Track Handler
     pc.ontrack = (event) => {
-      console.log('📡 Remote track received:', event.track.kind, event.streams);
-      const incoming = event.streams[0] || new MediaStream([event.track]);
-      setRemoteStream(incoming);
+      console.log('📡 Remote track received:', event.track.kind, event.track.id);
+
+      // Accumulate tracks in our consolidated MediaStream
+      if (!remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id)) {
+        remoteStreamRef.current.addTrack(event.track);
+      }
+
+      if (event.streams && event.streams[0]) {
+        event.streams[0].getTracks().forEach((t) => {
+          if (!remoteStreamRef.current.getTracks().some((existing) => existing.id === t.id)) {
+            remoteStreamRef.current.addTrack(t);
+          }
+        });
+      }
+
+      const stream = new MediaStream(remoteStreamRef.current.getTracks());
+      setRemoteStream(stream);
 
       // Play through dedicated remote audio element
       if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = incoming;
+        remoteAudioRef.current.srcObject = stream;
         remoteAudioRef.current.play().catch((e) => {
           console.warn('Remote audio autoplay blocked:', e);
           setAutoplayBlocked(true);
         });
       }
 
-      // Play through remote video element if video available
+      // Play through remote video element (MUST be muted so browser does not block video decoding)
       if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = incoming;
+        remoteVideoRef.current.srcObject = stream;
+        remoteVideoRef.current.muted = true;
         remoteVideoRef.current.play().catch((e) => console.warn('Remote video autoplay error:', e));
       }
     };
@@ -357,7 +382,9 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
       if (remoteAudioRef.current) {
         remoteAudioRef.current.srcObject = remoteStream;
-        remoteAudioRef.current.play().catch((e) => {
+        remoteAudioRef.current.play().then(() => {
+          setAutoplayBlocked(false);
+        }).catch((e) => {
           console.warn('Remote audio autoplay blocked:', e);
           setAutoplayBlocked(true);
         });
@@ -365,9 +392,37 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
-        remoteVideoRef.current.play().catch(() => {});
+        remoteVideoRef.current.muted = true;
+        remoteVideoRef.current.play().catch((e) => console.warn('Remote video play catch:', e));
       }
     }
+  }, [remoteStream]);
+
+  // Automatically unblock audio on any user tap/click/keystroke anywhere on the page
+  useEffect(() => {
+    const handleGesture = () => {
+      if (remoteAudioRef.current && remoteAudioRef.current.paused && remoteStream) {
+        remoteAudioRef.current.play().then(() => {
+          setAutoplayBlocked(false);
+        }).catch(() => {});
+      }
+      if (remoteAudioContextRef.current && remoteAudioContextRef.current.state === 'suspended') {
+        remoteAudioContextRef.current.resume().catch(() => {});
+      }
+      if (localAudioContextRef.current && localAudioContextRef.current.state === 'suspended') {
+        localAudioContextRef.current.resume().catch(() => {});
+      }
+    };
+
+    window.addEventListener('click', handleGesture, { passive: true });
+    window.addEventListener('touchstart', handleGesture, { passive: true });
+    window.addEventListener('keydown', handleGesture, { passive: true });
+
+    return () => {
+      window.removeEventListener('click', handleGesture);
+      window.removeEventListener('touchstart', handleGesture);
+      window.removeEventListener('keydown', handleGesture);
+    };
   }, [remoteStream]);
 
   // Socket Signaling Listeners
@@ -647,6 +702,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
+                muted
                 className={`w-full h-full object-cover ${!remoteVideoEnabled ? 'hidden' : ''}`}
               />
 
