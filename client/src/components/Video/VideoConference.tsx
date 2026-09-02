@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getSocket } from '../../services/socket';
+import { apiFetch } from '../../services/api';
 import type { UserRole } from '../../types';
 import { 
   Video, 
@@ -76,8 +77,22 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
   const localAudioContextRef = useRef<AudioContext | null>(null);
   const remoteAudioContextRef = useRef<AudioContext | null>(null);
+  const iceServersRef = useRef<RTCIceServer[]>(RTC_CONFIG.iceServers || []);
 
   const socket = getSocket();
+
+  // Dynamically load fresh STUN/TURN servers from backend
+  useEffect(() => {
+    apiFetch('/api/webrtc/ice-servers')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.iceServers) && data.iceServers.length > 0) {
+          iceServersRef.current = data.iceServers;
+          console.log('🌐 Loaded dynamic WebRTC ICE servers:', data.iceServers.length);
+        }
+      })
+      .catch((err) => console.warn('Could not fetch custom ICE servers, using defaults:', err));
+  }, []);
 
   // Notify parent of stream availability for recording
   React.useEffect(() => {
@@ -135,7 +150,10 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       return peerConnectionRef.current;
     }
 
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+    const pc = new RTCPeerConnection({
+      iceServers: iceServersRef.current,
+      iceCandidatePoolSize: 10
+    });
     peerConnectionRef.current = pc;
 
     // Attach local media tracks

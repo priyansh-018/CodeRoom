@@ -9,6 +9,7 @@ import sessionRoutes from './routes/sessionRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import codeRoutes from './routes/codeRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
+import webrtcRoutes from './routes/webrtcRoutes.js';
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/webrtc', webrtcRoutes);
 app.use('/api', codeRoutes);
 
 const server = http.createServer(app);
