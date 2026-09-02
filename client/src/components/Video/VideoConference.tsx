@@ -22,16 +22,9 @@ const RTC_CONFIG: RTCConfiguration = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:global.stun.twilio.com:3478' },
-    {
-      urls: [
-        'turn:openrelay.metered.ca:80',
-        'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp'
-      ],
-      username: 'openrelay',
-      credential: 'openrelay'
-    }
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' }
   ],
   iceCandidatePoolSize: 10
 };
@@ -445,6 +438,33 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       }
     };
 
+    const handlePresenceUpdate = (data: { users: any[] }) => {
+      if (Array.isArray(data?.users)) {
+        const otherUser = data.users.find((u: any) => u.socketId !== socket.id);
+        if (otherUser) {
+          if (otherUser.name) setRemoteParticipantName(otherUser.name);
+          if (userRole === 'CANDIDATE' && !remoteStream) {
+            console.log('👥 Peer detected via presence-update, initiating offer to:', otherUser.name);
+            setTimeout(() => sendOffer(otherUser.socketId), 400);
+          }
+        }
+      }
+    };
+
+    const handleSocketConnect = () => {
+      console.log('⚡ VideoConference socket connected, broadcasting webrtc-ready');
+      if (localStreamRef.current) {
+        socket.emit('webrtc-ready', {
+          roomId,
+          role: userRole,
+          name: userName
+        });
+        if (userRole === 'CANDIDATE') {
+          setTimeout(() => sendOffer(), 500);
+        }
+      }
+    };
+
     // Handle peer's camera/mic toggle events
     const handleUserMediaState = (data: {
       socketId: string;
@@ -512,12 +532,16 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
     socket.on('webrtc-peer-ready', handlePeerReady);
     socket.on('user-joined', handleUserJoined);
+    socket.on('presence-update', handlePresenceUpdate);
+    socket.on('connect', handleSocketConnect);
     socket.on('user-media-state', handleUserMediaState);
     socket.on('webrtc-signal', handleSignal);
 
     return () => {
       socket.off('webrtc-peer-ready', handlePeerReady);
       socket.off('user-joined', handleUserJoined);
+      socket.off('presence-update', handlePresenceUpdate);
+      socket.off('connect', handleSocketConnect);
       socket.off('user-media-state', handleUserMediaState);
       socket.off('webrtc-signal', handleSignal);
     };
@@ -573,6 +597,24 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     }
   };
 
+  const reconnectCall = () => {
+    console.log('🔄 Manually restarting WebRTC peer connection...');
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    remoteStreamRef.current = new MediaStream();
+    setRemoteStream(null);
+    socket.emit('webrtc-ready', {
+      roomId,
+      role: userRole,
+      name: userName
+    });
+    if (userRole === 'CANDIDATE') {
+      setTimeout(() => sendOffer(), 400);
+    }
+  };
+
   return (
     <div className="flex flex-col bg-[#0d121f] border-b border-white/10 p-3 space-y-2 select-none">
       {/* Hidden dedicated audio element for incoming voice stream */}
@@ -608,6 +650,15 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
               <span>Click to Enable Voice</span>
             </button>
           )}
+
+          <button
+            onClick={reconnectCall}
+            className="px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+            title="Restart audio & video stream"
+          >
+            <Activity className="w-3 h-3 text-emerald-400" />
+            <span>Reconnect</span>
+          </button>
 
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
