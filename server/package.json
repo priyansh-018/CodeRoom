@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "render-build": "prisma generate && tsc",
+    "render-build": "npx prisma generate && npx tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -21,7 +22,9 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^9.1.0",
-    "socket.io": "^4.8.1"
+    "prisma": "^6.4.1",
+    "socket.io": "^4.8.1",
+    "typescript": "^5.7.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -31,9 +34,7 @@
     "@types/node": "^22.13.8",
     "@types/nodemailer": "^8.0.1",
     "@types/socket.io-client": "^1.4.36",
-    "prisma": "^6.4.1",
     "socket.io-client": "^4.8.3",
-    "tsx": "^4.19.3",
-    "typescript": "^5.7.3"
+    "tsx": "^4.19.3"
   }
 }
