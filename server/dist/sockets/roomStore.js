@@ -3,17 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.roomStore = void 0;
 class RoomStore {
     rooms = new Map();
+    endedRooms = new Map();
     getOrCreateRoom(roomId, defaultTitle = 'Mock Interview Session', defaultLanguage = 'javascript', initialCode) {
         if (!this.rooms.has(roomId)) {
-            const defaultStarter = initialCode || `// Welcome to CodeRoom!
-// Start typing below to collaborate in real-time.
-
-function solution() {
-  console.log("Hello, collaborative interviewer!");
-}
-
-solution();
-`;
+            const defaultStarter = initialCode || '';
             this.rooms.set(roomId, {
                 roomId,
                 title: defaultTitle,
@@ -22,13 +15,41 @@ solution();
                 version: 1,
                 users: new Map(),
                 createdAt: new Date(),
-                updatedAt: new Date()
+                updatedAt: new Date(),
+                isEnded: this.endedRooms.has(roomId),
+                endedSessionData: this.endedRooms.get(roomId)
             });
         }
-        return this.rooms.get(roomId);
+        const room = this.rooms.get(roomId);
+        if (this.endedRooms.has(roomId)) {
+            room.isEnded = true;
+            room.endedSessionData = this.endedRooms.get(roomId);
+        }
+        return room;
+    }
+    hasRoom(roomId) {
+        return this.rooms.has(roomId);
     }
     getRoom(roomId) {
         return this.rooms.get(roomId);
+    }
+    endRoom(roomId, sessionData) {
+        this.endedRooms.set(roomId, sessionData);
+        const room = this.rooms.get(roomId);
+        if (room) {
+            room.isEnded = true;
+            room.endedSessionData = sessionData;
+            room.updatedAt = new Date();
+        }
+    }
+    isRoomEnded(roomId) {
+        if (this.endedRooms.has(roomId))
+            return true;
+        const room = this.rooms.get(roomId);
+        return !!(room && room.isEnded);
+    }
+    getEndedSessionData(roomId) {
+        return this.endedRooms.get(roomId) || this.rooms.get(roomId)?.endedSessionData;
     }
     addUser(roomId, user) {
         const room = this.getOrCreateRoom(roomId);
@@ -59,6 +80,12 @@ solution();
     updateLanguage(roomId, language) {
         const room = this.getOrCreateRoom(roomId);
         room.language = language;
+        room.updatedAt = new Date();
+        return room;
+    }
+    updateTitle(roomId, title) {
+        const room = this.getOrCreateRoom(roomId);
+        room.title = title;
         room.updatedAt = new Date();
         return room;
     }

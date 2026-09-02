@@ -13,6 +13,7 @@ const authRoutes_js_1 = __importDefault(require("./routes/authRoutes.js"));
 const sessionRoutes_js_1 = __importDefault(require("./routes/sessionRoutes.js"));
 const aiRoutes_js_1 = __importDefault(require("./routes/aiRoutes.js"));
 const codeRoutes_js_1 = __importDefault(require("./routes/codeRoutes.js"));
+const supportRoutes_js_1 = __importDefault(require("./routes/supportRoutes.js"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -22,11 +23,22 @@ app.use((0, cors_1.default)({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express_1.default.json());
-// Register API Routes
-app.use('/api/auth', authRoutes_js_1.default);
-app.use('/api/sessions', sessionRoutes_js_1.default);
-app.use('/api/ai', aiRoutes_js_1.default);
-app.use('/api', codeRoutes_js_1.default);
+// Root status endpoint
+app.get('/', (req, res) => {
+    res.json({
+        name: 'CodeRoom API & WebSocket Server',
+        status: 'online',
+        frontendUrl: 'http://localhost:5173',
+        endpoints: {
+            health: '/api/health',
+            auth: '/api/auth',
+            sessions: '/api/sessions',
+            ai: '/api/ai',
+            execute: '/api/execute',
+            support: '/api/support/contact'
+        }
+    });
+});
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({
@@ -35,6 +47,12 @@ app.get('/api/health', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+// Mount API routes
+app.use('/api/auth', authRoutes_js_1.default);
+app.use('/api/sessions', sessionRoutes_js_1.default);
+app.use('/api/ai', aiRoutes_js_1.default);
+app.use('/api/support', supportRoutes_js_1.default);
+app.use('/api', codeRoutes_js_1.default);
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {

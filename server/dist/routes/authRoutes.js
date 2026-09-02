@@ -7,4 +7,5 @@ const router = (0, express_1.Router)();
 router.post('/register', authController_js_1.register);
 router.post('/login', authController_js_1.login);
 router.get('/me', authMiddleware_js_1.authenticateToken, authController_js_1.getMe);
+router.put('/profile', authMiddleware_js_1.authenticateToken, authController_js_1.updateProfile);
 exports.default = router;
