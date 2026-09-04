@@ -10,6 +10,7 @@ import { getSocket } from '../services/socket';
 import { apiFetch } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ProfileModal } from '../components/Profile/ProfileModal';
+import { CandidateProfileModal } from '../components/Candidate/CandidateProfileModal';
 import { SqlSchemaModal, SQL_PRESETS } from '../components/SQL/SqlSchemaModal';
 import { AiResultModal } from '../components/AI/AiResultModal';
 import { ASSESSMENT_TRACKS } from '../components/AI/AiSetupModal';
@@ -62,6 +63,7 @@ export const RoomPage: React.FC = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [currentUserSocketId, setCurrentUserSocketId] = useState<string>('');
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  const [isCandidateDossierOpen, setIsCandidateDossierOpen] = useState<boolean>(false);
 
   // SQL Schema & Database Management state
   const [isSqlSchemaOpen, setIsSqlSchemaOpen] = useState<boolean>(false);
@@ -1248,6 +1250,9 @@ export const RoomPage: React.FC = () => {
     );
   }
 
+  // Identify candidate in current interview room
+  const candidateUser = users.find((u) => u.role === 'CANDIDATE' && u.socketId !== currentUserSocketId) || users.find((u) => u.role === 'CANDIDATE');
+
   // =========================================================================
   // MAIN ROOM INTERACTION WORKSPACE
   // =========================================================================
@@ -1325,6 +1330,15 @@ export const RoomPage: React.FC = () => {
 
       {/* Profile Modal */}
       <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
+
+      {/* Candidate Dossier & Resume Modal for Interviewer */}
+      <CandidateProfileModal
+        isOpen={isCandidateDossierOpen}
+        onClose={() => setIsCandidateDossierOpen(false)}
+        candidateName={candidateUser?.name || 'Candidate'}
+        candidateAvatar={candidateUser?.avatarUrl}
+        profile={candidateUser?.candidateProfile}
+      />
 
       {/* SQL Database Schema & Mock Tables Modal */}
       <SqlSchemaModal
@@ -1536,6 +1550,8 @@ export const RoomPage: React.FC = () => {
         isAiSession={isAiSession}
         onStopAiInterview={isAiSession ? handleStopAiInterview : undefined}
         userRole={user.role}
+        onOpenCandidateDossier={() => setIsCandidateDossierOpen(true)}
+        hasCandidateInRoom={!!candidateUser}
       />
 
       {/* Live WebRTC Audio/Video Conference Bar (Hidden in AI Solo Mode) */}

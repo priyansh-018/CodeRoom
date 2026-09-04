@@ -14,6 +14,7 @@ const sessionRoutes_js_1 = __importDefault(require("./routes/sessionRoutes.js"))
 const aiRoutes_js_1 = __importDefault(require("./routes/aiRoutes.js"));
 const codeRoutes_js_1 = __importDefault(require("./routes/codeRoutes.js"));
 const supportRoutes_js_1 = __importDefault(require("./routes/supportRoutes.js"));
+const webrtcRoutes_js_1 = __importDefault(require("./routes/webrtcRoutes.js"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -22,7 +23,8 @@ app.use((0, cors_1.default)({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '10mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
 // Root status endpoint
 app.get('/', (req, res) => {
     res.json({
@@ -52,7 +54,17 @@ app.use('/api/auth', authRoutes_js_1.default);
 app.use('/api/sessions', sessionRoutes_js_1.default);
 app.use('/api/ai', aiRoutes_js_1.default);
 app.use('/api/support', supportRoutes_js_1.default);
+app.use('/api/webrtc', webrtcRoutes_js_1.default);
 app.use('/api', codeRoutes_js_1.default);
+// Global error handling middleware (ensures JSON responses instead of HTML error pages)
+app.use((err, req, res, next) => {
+    if (err.type === 'entity.too.large' || err.status === 413) {
+        res.status(413).json({ error: 'Uploaded image or payload is too large. Maximum size is 10MB.' });
+        return;
+    }
+    console.error('Unhandled server error:', err);
+    res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+});
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {

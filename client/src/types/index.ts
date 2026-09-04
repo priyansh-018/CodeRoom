@@ -36,6 +36,17 @@ export interface LanguageConfig {
   defaultCode: string;
 }
 
+export interface CandidateProfile {
+  phone?: string;
+  qualificationStatus?: string;
+  degree?: string;
+  skills?: string | string[];
+  resumeUrl?: string;
+  resumeFileName?: string;
+  github?: string;
+  linkedin?: string;
+}
+
 export interface UserPresence {
   socketId: string;
   userId?: string;
@@ -43,6 +54,7 @@ export interface UserPresence {
   role?: UserRole;
   avatarUrl?: string;
   color: string;
+  candidateProfile?: CandidateProfile;
   cursor?: {
     lineNumber: number;
     column: number;

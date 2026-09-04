@@ -60,13 +60,38 @@ export function setupRoomHandlers(io: Server) {
 
       socket.join(roomId);
 
+      let candidateProfile: any = undefined;
+      if (user.userId && user.role === 'CANDIDATE') {
+        try {
+          const cand = await prisma.candidate.findUnique({
+            where: { id: user.userId },
+            select: {
+              phone: true,
+              qualificationStatus: true,
+              degree: true,
+              skills: true,
+              resumeUrl: true,
+              resumeFileName: true,
+              github: true,
+              linkedin: true
+            }
+          });
+          if (cand) {
+            candidateProfile = cand;
+          }
+        } catch (candErr) {
+          // Continue if DB lookup fails
+        }
+      }
+
       const roomUser: RoomUser = {
         socketId: socket.id,
         userId: user.userId,
         name: user.name || 'Anonymous Coder',
         role: user.role || 'CANDIDATE',
         avatarUrl: user.avatarUrl,
-        color: user.color || '#6366f1'
+        color: user.color || '#6366f1',
+        candidateProfile
       };
 
       const room = roomStore.addUser(roomId, roomUser);

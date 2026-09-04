@@ -16,6 +16,9 @@ model Interviewer {
   bio          String?   @db.Text
   title        String?   @default("Senior Technical Interviewer")
   company      String?   @default("CodeRoom Host")
+  organization String?
+  position     String?
+  phone        String?
   github       String?
   linkedin     String?
   createdAt    DateTime  @default(now())
@@ -28,19 +31,25 @@ model Interviewer {
 }
 
 model Candidate {
-  id             String    @id @default(uuid())
-  email          String    @unique
-  name           String
-  passwordHash   String
-  avatarUrl      String?   @db.Text
-  bio            String?   @db.Text
-  title          String?   @default("Software Engineering Candidate")
-  university     String?
-  graduationYear String?
-  github         String?
-  linkedin       String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  name                String
+  passwordHash        String
+  avatarUrl           String?   @db.Text
+  bio                 String?   @db.Text
+  title               String?   @default("Software Engineering Candidate")
+  university          String?
+  graduationYear      String?
+  phone               String?
+  qualificationStatus String?
+  degree              String?
+  skills              String?   @db.Text
+  resumeUrl           String?   @db.Text
+  resumeFileName      String?
+  github              String?
+  linkedin            String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   sessions       Session[] @relation("CandidateSessions")
 
@@ -102,4 +111,14 @@ model SessionEvent {
 
   @@index([sessionId, timestamp])
   @@map("session_events")
+}
+
+model EmailOtp {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("email_otps")
 }

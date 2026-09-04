@@ -55,21 +55,57 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
   if (!isOpen) return null;
 
-  // Handle local image file upload
+  // Handle local image file upload with client-side optimization/compression
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      setError('Image size should be less than 2MB');
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Image size should be less than 8MB');
       return;
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
-        setAvatarUrl(reader.result);
-      }
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 400;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.85);
+            setAvatarUrl(compressed);
+            setError(null);
+          } else {
+            setAvatarUrl(event.target?.result as string);
+          }
+        } catch {
+          setAvatarUrl(event.target?.result as string);
+        }
+      };
+      img.onerror = () => {
+        setError('Failed to read selected image');
+      };
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };

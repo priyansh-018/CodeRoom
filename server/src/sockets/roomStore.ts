@@ -5,6 +5,16 @@ export interface RoomUser {
   role?: 'HOST' | 'CANDIDATE';
   avatarUrl?: string;
   color: string;
+  candidateProfile?: {
+    phone?: string;
+    qualificationStatus?: string;
+    degree?: string;
+    skills?: string | string[];
+    resumeUrl?: string;
+    resumeFileName?: string;
+    github?: string;
+    linkedin?: string;
+  };
   cursor?: {
     lineNumber: number;
     column: number;

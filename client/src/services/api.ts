@@ -13,9 +13,22 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}): Pro
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  
   return fetch(url, {
     ...options,
     headers
   });
+}
+
+export async function safeJson<T = any>(res: Response): Promise<{ ok: boolean; status: number; data: T }> {
+  try {
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return {
+      ok: false,
+      status: res.status,
+      data: { error: `Server response error (${res.status} ${res.statusText || 'Unexpected response'})` } as any
+    };
+  }
 }

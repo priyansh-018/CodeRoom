@@ -36,6 +36,8 @@ interface NavbarProps {
   onStopAiInterview?: () => void;
   isAiSession?: boolean;
   userRole?: UserRole;
+  onOpenCandidateDossier?: () => void;
+  hasCandidateInRoom?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -58,7 +60,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSqlSchema,
   onStopAiInterview,
   isAiSession,
-  userRole
+  userRole,
+  onOpenCandidateDossier,
+  hasCandidateInRoom
 }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -318,6 +322,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Square className="w-3.5 h-3.5 fill-current" />
             <span>Stop AI Interview</span>
+          </button>
+        )}
+
+        {/* Candidate Resume & Profile Button (HOST ONLY) */}
+        {userRole === 'HOST' && onOpenCandidateDossier && (
+          <button
+            onClick={onOpenCandidateDossier}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-[#7CFC00]/15 hover:bg-[#7CFC00]/25 border border-[#7CFC00]/40 text-[#7CFC00] shadow-sm transition-all cursor-pointer"
+            title="Inspect Candidate Details, Skills & Resume"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Candidate Dossier</span>
+            {hasCandidateInRoom && (
+              <span className="w-2 h-2 rounded-full bg-[#7CFC00] animate-ping" />
+            )}
           </button>
         )}
 
