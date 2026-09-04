@@ -1,18 +1,15 @@
 import React from 'react';
 import { 
   X, 
-  User, 
   GraduationCap, 
   BookOpen, 
   Code2, 
-  FileText, 
-  Download, 
+  FileText,  
   ExternalLink, 
   Phone, 
   Mail, 
   Linkedin, 
   Github,
-  Award,
   Sparkles
 } from 'lucide-react';
 import type { CandidateProfile } from '../../types';

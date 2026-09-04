@@ -22,7 +22,6 @@ import {
   Award,
   Plus,
   FileText,
-  Upload,
   Globe,
   Link2,
   Building2,
