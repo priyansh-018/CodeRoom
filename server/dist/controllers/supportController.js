@@ -1,26 +1,12 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.serveAdminReplyPage = exports.handleAdminReply = exports.handleContactSupport = void 0;
-const nodemailer_1 = __importDefault(require("nodemailer"));
+const emailService_js_1 = require("../services/emailService.js");
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'priyansh191882@gmail.com';
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'service@gmail.com';
 const ADMIN_SECRET = process.env.JWT_SECRET || 'coderoom_super_secret_jwt_key_2026';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:5000';
-function getTransporter() {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS)
-        return null;
-    return nodemailer_1.default.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS.replace(/\s+/g, '')
-        }
-    });
-}
 // ─── USER SUBMITS A SUPPORT TICKET ───
 const handleContactSupport = async (req, res) => {
     try {
@@ -91,7 +77,7 @@ const handleContactSupport = async (req, res) => {
   </div>
 </div>
 `;
-        const transporter = getTransporter();
+        const transporter = await (0, emailService_js_1.getEmailTransporter)();
         if (transporter) {
             // Send to admin
             await transporter.sendMail({
@@ -154,7 +140,7 @@ const handleAdminReply = async (req, res) => {
   </div>
 </div>
 `;
-        const transporter = getTransporter();
+        const transporter = await (0, emailService_js_1.getEmailTransporter)();
         if (!transporter) {
             return res.status(500).json({ error: 'Email service not configured on server.' });
         }

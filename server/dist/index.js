@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const node_dns_1 = __importDefault(require("node:dns"));
 const express_1 = __importDefault(require("express"));
 const http_1 = __importDefault(require("http"));
 const socket_io_1 = require("socket.io");
@@ -15,6 +16,11 @@ const aiRoutes_js_1 = __importDefault(require("./routes/aiRoutes.js"));
 const codeRoutes_js_1 = __importDefault(require("./routes/codeRoutes.js"));
 const supportRoutes_js_1 = __importDefault(require("./routes/supportRoutes.js"));
 const webrtcRoutes_js_1 = __importDefault(require("./routes/webrtcRoutes.js"));
+// Force Node.js to prefer IPv4 over IPv6 across all outbound network connections
+// Prevents ENETUNREACH errors on cloud hosting platforms (Render, Railway, AWS, DigitalOcean)
+if (node_dns_1.default.setDefaultResultOrder) {
+    node_dns_1.default.setDefaultResultOrder('ipv4first');
+}
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;

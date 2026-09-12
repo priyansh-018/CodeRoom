@@ -1,3 +1,4 @@
+import dns from 'node:dns';
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -10,6 +11,12 @@ import aiRoutes from './routes/aiRoutes.js';
 import codeRoutes from './routes/codeRoutes.js';
 import supportRoutes from './routes/supportRoutes.js';
 import webrtcRoutes from './routes/webrtcRoutes.js';
+
+// Force Node.js to prefer IPv4 over IPv6 across all outbound network connections
+// Prevents ENETUNREACH errors on cloud hosting platforms (Render, Railway, AWS, DigitalOcean)
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 dotenv.config();
 

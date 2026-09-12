@@ -6,20 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCandidateProfile = exports.updateProfile = exports.getMe = exports.login = exports.register = exports.verifyOtpAndRegister = exports.sendSignupOtp = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const nodemailer_1 = __importDefault(require("nodemailer"));
 const db_js_1 = require("../db.js");
+const emailService_js_1 = require("../services/emailService.js");
 const JWT_SECRET = process.env.JWT_SECRET || 'coderoom_super_secret_jwt_key_2026';
-function getEmailTransporter() {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS)
-        return null;
-    return nodemailer_1.default.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS.replace(/\s+/g, '')
-        }
-    });
-}
 // ─── 1. SEND REAL EMAIL OTP ───
 const sendSignupOtp = async (req, res) => {
     try {
@@ -57,7 +46,7 @@ const sendSignupOtp = async (req, res) => {
                 expiresAt
             }
         });
-        const transporter = getEmailTransporter();
+        const transporter = await (0, emailService_js_1.getEmailTransporter)();
         if (transporter) {
             const emailHtml = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #050505; padding: 40px 20px; color: #ffffff;">
@@ -94,14 +83,22 @@ const sendSignupOtp = async (req, res) => {
   </div>
 </div>
 `;
-            await transporter.sendMail({
-                from: `"CodeRoom Security" <${process.env.SMTP_USER}>`,
-                to: cleanEmail,
-                subject: `[CodeRoom] Your 6-Digit Verification Code is ${otp}`,
-                html: emailHtml,
-                text: `Your CodeRoom verification code is ${otp}. Valid for 10 minutes.`
-            });
-            console.log(`✅ [OTP Sent] Email delivered to ${cleanEmail} with code ${otp}`);
+            try {
+                await transporter.sendMail({
+                    from: `"CodeRoom Security" <${process.env.SMTP_USER}>`,
+                    to: cleanEmail,
+                    subject: `[CodeRoom] Your 6-Digit Verification Code is ${otp}`,
+                    html: emailHtml,
+                    text: `Your CodeRoom verification code is ${otp}. Valid for 10 minutes.`
+                });
+                console.log(`✅ [OTP Sent] Email delivered to ${cleanEmail} with code ${otp}`);
+            }
+            catch (mailError) {
+                (0, emailService_js_1.resetEmailTransporter)();
+                console.error('Nodemailer send error:', mailError);
+                res.status(500).json({ error: `Failed to deliver verification email: ${mailError.message || 'SMTP Connection Error'}` });
+                return;
+            }
         }
         else {
             console.log(`⚠️ [Dev OTP] ${otp} for ${cleanEmail} (Nodemailer transporter not ready)`);
