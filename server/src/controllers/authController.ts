@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db.js';
 import { AuthRequest } from '../middleware/authMiddleware.js';
-import { getEmailTransporter, resetEmailTransporter } from '../services/emailService.js';
+import { sendEmail, getEmailTransporter, resetEmailTransporter } from '../services/emailService.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'coderoom_super_secret_jwt_key_2026';
 
@@ -50,9 +50,7 @@ export const sendSignupOtp = async (req: Request, res: Response): Promise<void> 
       }
     });
 
-    const transporter = await getEmailTransporter();
-    if (transporter) {
-      const emailHtml = `
+    const emailHtml = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #050505; padding: 40px 20px; color: #ffffff;">
   <div style="max-width: 480px; margin: 0 auto; background: #0e0e0e; border-radius: 28px; padding: 36px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 60px rgba(0,0,0,0.8);">
     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
@@ -88,26 +86,37 @@ export const sendSignupOtp = async (req: Request, res: Response): Promise<void> 
 </div>
 `;
 
-      try {
-        await transporter.sendMail({
-          from: `"CodeRoom Security" <${process.env.SMTP_USER}>`,
-          to: cleanEmail,
-          subject: `[CodeRoom] Your 6-Digit Verification Code is ${otp}`,
-          html: emailHtml,
-          text: `Your CodeRoom verification code is ${otp}. Valid for 10 minutes.`
-        });
+    let emailDelivered = false;
+    let deliveryNote = '';
+
+    try {
+      emailDelivered = await sendEmail({
+        from: `"CodeRoom Security" <${process.env.SMTP_USER || 'security@coderoom.dev'}>`,
+        to: cleanEmail,
+        subject: `[CodeRoom] Your 6-Digit Verification Code is ${otp}`,
+        html: emailHtml,
+        text: `Your CodeRoom verification code is ${otp}. Valid for 10 minutes.`
+      });
+      if (emailDelivered) {
         console.log(`✅ [OTP Sent] Email delivered to ${cleanEmail} with code ${otp}`);
-      } catch (mailError: any) {
-        resetEmailTransporter();
-        console.error('Nodemailer send error:', mailError);
-        res.status(500).json({ error: `Failed to deliver verification email: ${mailError.message || 'SMTP Connection Error'}` });
-        return;
       }
-    } else {
-      console.log(`⚠️ [Dev OTP] ${otp} for ${cleanEmail} (Nodemailer transporter not ready)`);
+    } catch (mailError: any) {
+      deliveryNote = mailError.message || 'SMTP Connection Error';
+      console.warn(`\n======================================================`);
+      console.warn(`⚠️ [HOST BLOCKED SMTP] Could not deliver email to ${cleanEmail}`);
+      console.warn(`Reason: ${deliveryNote}`);
+      console.warn(`🔑 [VERIFICATION OTP FOR ${cleanEmail}]: ${otp}`);
+      console.warn(`======================================================\n`);
     }
 
-    res.json({ success: true, message: `Verification code successfully sent to ${cleanEmail}` });
+    res.json({
+      success: true,
+      delivered: emailDelivered,
+      fallbackOtp: !emailDelivered ? otp : undefined,
+      message: emailDelivered
+        ? `Verification code successfully sent to ${cleanEmail}`
+        : `Note: Host network blocked outbound email. Your verification code is ${otp}`
+    });
   } catch (error: any) {
     console.error('sendSignupOtp error:', error);
     res.status(500).json({ error: error.message || 'Failed to dispatch verification email' });

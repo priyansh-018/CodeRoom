@@ -71,7 +71,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, password: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
-  sendSignupOtp: (email: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  sendSignupOtp: (email: string) => Promise<{ success: boolean; error?: string; message?: string; fallbackOtp?: string; delivered?: boolean }>;
   verifyOtpAndRegister: (payload: SignupPayload) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (data: UpdateProfileData) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -167,7 +167,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { success: false, error: data.error || 'Failed to dispatch verification email' };
       }
 
-      return { success: true, message: data.message };
+      return {
+        success: true,
+        message: data.message,
+        fallbackOtp: data.fallbackOtp,
+        delivered: data.delivered
+      };
     } catch (err: any) {
       return { success: false, error: err.message || 'Network error sending OTP' };
     }

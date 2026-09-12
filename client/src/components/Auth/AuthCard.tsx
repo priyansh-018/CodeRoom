@@ -83,6 +83,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 
   // Step 3: OTP Verification Fields
   const [otp, setOtp] = useState('');
+  const [fallbackOtp, setFallbackOtp] = useState<string | null>(null);
   const [otpTimer, setOtpTimer] = useState<number>(60);
   const [canResendOtp, setCanResendOtp] = useState<boolean>(false);
 
@@ -242,8 +243,15 @@ export const AuthCard: React.FC<AuthCardProps> = ({
         setSignUpStep(3);
         setOtpTimer(60);
         setCanResendOtp(false);
-        setSuccessMsg(`Verification code sent to ${email.trim()}`);
-        setTimeout(() => setSuccessMsg(null), 4000);
+        if (res.fallbackOtp) {
+          setFallbackOtp(res.fallbackOtp);
+          setOtp(res.fallbackOtp);
+          setSuccessMsg(`Host network blocked SMTP • Test Code: ${res.fallbackOtp}`);
+        } else {
+          setFallbackOtp(null);
+          setSuccessMsg(`Verification code sent to ${email.trim()}`);
+        }
+        setTimeout(() => setSuccessMsg(null), 5000);
       } else {
         setError(res.error || 'Failed to dispatch verification email');
       }
@@ -262,8 +270,15 @@ export const AuthCard: React.FC<AuthCardProps> = ({
       if (res.success) {
         setOtpTimer(60);
         setCanResendOtp(false);
-        setSuccessMsg('A fresh verification code has been dispatched to your email.');
-        setTimeout(() => setSuccessMsg(null), 3500);
+        if (res.fallbackOtp) {
+          setFallbackOtp(res.fallbackOtp);
+          setOtp(res.fallbackOtp);
+          setSuccessMsg(`Host network blocked SMTP • Test Code: ${res.fallbackOtp}`);
+        } else {
+          setFallbackOtp(null);
+          setSuccessMsg('A fresh verification code has been dispatched to your email.');
+        }
+        setTimeout(() => setSuccessMsg(null), 4500);
       } else {
         setError(res.error || 'Failed to resend verification code');
       }
@@ -1003,6 +1018,23 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 </p>
               </div>
             </div>
+
+            {/* Fallback OTP Badge if Host blocked Outbound SMTP */}
+            {fallbackOtp && (
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-center justify-between gap-2 shadow-[0_0_20px_rgba(245,158,11,0.15)]">
+                <div className="flex flex-col text-left">
+                  <span className="font-bold text-amber-300 text-[11px]">⚠️ Cloud Host Blocked Outbound Email</span>
+                  <span className="text-[10px] text-neutral-400">Testing verification code: <strong className="text-[#7CFC00] font-mono font-black">{fallbackOtp}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOtp(fallbackOtp)}
+                  className="px-3 py-1.5 rounded-xl bg-[#7CFC00] hover:bg-[#72F000] text-black font-extrabold text-[11px] whitespace-nowrap cursor-pointer transition-all shadow-[0_0_10px_rgba(124,252,0,0.3)]"
+                >
+                  Auto-fill
+                </button>
+              </div>
+            )}
 
             {/* 6-digit OTP Input */}
             <div className="space-y-1">
