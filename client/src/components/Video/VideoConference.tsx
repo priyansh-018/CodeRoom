@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getSocket } from '../../services/socket';
 import { apiFetch } from '../../services/api';
-import type { UserRole } from '../../types';
+import type { UserRole, UserPresence } from '../../types';
 import { 
   Video, 
   VideoOff, 
@@ -15,7 +15,13 @@ import {
   Volume2,
   VolumeX,
   EyeOff,
-  Activity
+  Activity,
+  GraduationCap,
+  FileText,
+  ChevronRight,
+  Sparkles,
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 
 const RTC_CONFIG: RTCConfiguration = {
@@ -38,14 +44,37 @@ interface VideoConferenceProps {
   autoRequestMedia?: boolean;
   /** Fires whenever local or remote media streams change, so parent can record */
   onStreamsReady?: (local: MediaStream | null, remote: MediaStream | null) => void;
+  candidateUser?: UserPresence;
+  onOpenCandidateDossier?: () => void;
+  hostProctorCount?: number;
+  onToggleSidebar?: () => void;
 }
+
+const parseCandidateSkills = (rawSkills?: string | string[]): string[] => {
+  if (!rawSkills) return [];
+  if (Array.isArray(rawSkills)) return rawSkills;
+  if (typeof rawSkills === 'string') {
+    try {
+      const parsed = JSON.parse(rawSkills);
+      if (Array.isArray(parsed)) return parsed;
+      return [rawSkills];
+    } catch {
+      return rawSkills.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+  }
+  return [];
+};
 
 export const VideoConference: React.FC<VideoConferenceProps> = ({
   roomId,
   userName,
   userRole = 'CANDIDATE',
   autoRequestMedia = true,
-  onStreamsReady
+  onStreamsReady,
+  candidateUser,
+  onOpenCandidateDossier,
+  hostProctorCount = 0,
+  onToggleSidebar
 }) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -773,45 +802,47 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     }
   };
 
+  const candidateSkills = parseCandidateSkills(candidateUser?.candidateProfile?.skills);
+
   return (
-    <div className="flex flex-col bg-[#0d121f] border-b border-white/10 p-3 space-y-2 select-none">
-      {/* Hidden dedicated audio element for incoming voice stream */}
+    <div className="w-full h-full bg-[#0b0e17] flex flex-col select-none overflow-hidden font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* Hidden dedicated audio element for incoming voice stream - ALWAYS MOUNTED */}
       <audio
         ref={remoteAudioRef}
         autoPlay
         playsInline
       />
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${remoteStream ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
-          <span className="text-xs font-bold text-white flex items-center gap-1.5">
-            <Camera className="w-3.5 h-3.5 text-indigo-400" />
-            <span>
+      {/* Top Header of Video Panel */}
+      <div className="h-11 px-3 border-b border-white/10 flex items-center justify-between bg-white/[0.02] shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`w-2 h-2 rounded-full shrink-0 ${remoteStream ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+          <span className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+            <Camera className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="truncate">
               {userRole === 'HOST' 
-                ? 'Candidate Live Camera Proctoring Feed' 
-                : 'Your Live Camera Stream (Proctoring Active)'}
+                ? 'Candidate Proctoring Feed' 
+                : 'Your Proctoring Camera'}
             </span>
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {/* Autoplay Unblock Alert */}
           {autoplayBlocked && (
             <button
               onClick={handleUnblockAudio}
-              className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[10px] animate-bounce flex items-center gap-1 shadow-md shadow-emerald-500/20 cursor-pointer"
+              className="px-2 py-0.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[10px] animate-bounce flex items-center gap-1 shadow-md cursor-pointer"
               title="Click to enable incoming audio"
             >
               <Volume2 className="w-3 h-3" />
-              <span>Click to Enable Voice</span>
+              <span>Voice</span>
             </button>
           )}
 
           <button
             onClick={reconnectCall}
-            className="px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+            className="px-2 py-1 rounded-md bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer border border-white/5"
             title="Restart audio & video stream"
           >
             <Activity className="w-3 h-3 text-emerald-400" />
@@ -820,231 +851,408 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1 text-slate-400 hover:text-white rounded-md hover:bg-white/5 transition-colors cursor-pointer"
+            className="p-1 text-slate-400 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
             title={isCollapsed ? 'Expand Video' : 'Minimize Video'}
           >
             {isCollapsed ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
           </button>
+
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              className="p-1 text-slate-400 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer ml-0.5"
+              title="Collapse Studio Sidebar"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Permission Warning */}
+      {/* Permission Warning if camera/mic blocked */}
       {hasPermissionError && (
-        <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-2">
+        <div className="m-2.5 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-2 shrink-0">
           <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <span>{hasPermissionError}</span>
+          <span className="text-[11px] leading-tight">{hasPermissionError}</span>
         </div>
       )}
 
-      {/* Video Streams Container */}
-      {!isCollapsed && (
-        <div>
-          {/* CANDIDATE VIEW: Candidate's local camera stream */}
-          {userRole === 'CANDIDATE' && (
-            <div className="relative rounded-2xl bg-black/60 border border-white/10 overflow-hidden aspect-[21/9] sm:aspect-[24/7] flex items-center justify-center shadow-lg">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover ${!isVideoEnabled ? 'hidden' : ''}`}
-              />
+      {/* Video Stream Container: 16:9 widescreen ratio (~200-230px height) */}
+      {!isCollapsed ? (
+        <div className="p-3 pb-2 shrink-0">
+          <div className="relative rounded-2xl bg-[#06080e] border border-white/10 overflow-hidden aspect-video flex items-center justify-center shadow-lg group">
+            {/* CANDIDATE VIEW: Candidate's local camera stream */}
+            {userRole === 'CANDIDATE' && (
+              <>
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`w-full h-full object-cover ${!isVideoEnabled ? 'hidden' : ''}`}
+                />
 
-              {!isVideoEnabled && (
-                <div className="flex flex-col items-center gap-1.5 text-slate-400 text-xs">
-                  <div className="p-3 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                    <EyeOff className="w-6 h-6" />
+                {!isVideoEnabled && (
+                  <div className="flex flex-col items-center gap-1.5 text-slate-400 text-xs p-3 text-center">
+                    <div className="p-2.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                      <EyeOff className="w-5 h-5" />
+                    </div>
+                    <span className="text-xs font-bold text-rose-300">Camera Turned Off</span>
+                    <span className="text-[10px] text-slate-500">Your webcam is hidden from the interviewer</span>
                   </div>
-                  <span className="text-xs font-semibold text-rose-300">Camera Turned Off</span>
-                  <span className="text-[10px] text-slate-500">Your video is hidden from the interviewer</span>
+                )}
+
+                {/* Status Tags */}
+                <div className="absolute bottom-2 left-2 flex items-center gap-1.5 z-10">
+                  <div className="px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm text-[10px] font-medium text-white flex items-center gap-1 border border-white/10">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isVideoEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                    <span>You</span>
+                  </div>
+
+                  {isAudioEnabled ? (
+                    <div className={`px-1.5 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-bold flex items-center gap-1 border transition-all ${
+                      localIsSpeaking 
+                        ? 'bg-emerald-950/90 text-emerald-300 border-emerald-400 shadow-md shadow-emerald-500/30' 
+                        : 'bg-black/75 text-slate-300 border-white/10'
+                    }`}>
+                      <Mic className={`w-2.5 h-2.5 ${localIsSpeaking ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
+                      <span>{localIsSpeaking ? 'Speaking' : 'Mic On'}</span>
+                    </div>
+                  ) : (
+                    <div className="px-1.5 py-0.5 rounded-md bg-rose-950/80 backdrop-blur-sm text-[10px] font-bold text-rose-300 flex items-center gap-1 border border-rose-500/40">
+                      <MicOff className="w-2.5 h-2.5 text-rose-400" />
+                      <span>Muted</span>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {/* Status Tags */}
-              <div className="absolute bottom-2 left-2 flex items-center gap-2">
-                <div className="px-2.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-medium text-white flex items-center gap-1.5 border border-white/10">
-                  <span className={`w-1.5 h-1.5 rounded-full ${isVideoEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
-                  <span>Candidate (You) • {isVideoEnabled ? 'Camera Active' : 'Camera Off'}</span>
+                {/* Remote Peer Voice Status on Candidate Screen */}
+                <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-10">
+                  {remoteStream ? (
+                    <div className={`px-2 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-medium flex items-center gap-1 border ${
+                      remoteIsSpeaking 
+                        ? 'bg-cyan-950/90 text-cyan-200 border-cyan-400 shadow-md shadow-cyan-500/20' 
+                        : 'bg-black/75 text-slate-300 border-white/10'
+                    }`}>
+                      <Volume2 className={`w-2.5 h-2.5 ${remoteIsSpeaking ? 'text-cyan-400 animate-bounce' : 'text-slate-400'}`} />
+                      <span className="truncate max-w-[90px]">{remoteParticipantName || 'Interviewer'}</span>
+                    </div>
+                  ) : (
+                    <div className="px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm text-[10px] font-medium text-slate-400 border border-white/10">
+                      <span>Host Audio Waiting</span>
+                    </div>
+                  )}
                 </div>
+              </>
+            )}
 
-                {isAudioEnabled ? (
-                  <div className={`px-2 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-bold flex items-center gap-1 border transition-all ${
-                    localIsSpeaking 
-                      ? 'bg-emerald-950/90 text-emerald-300 border-emerald-400 shadow-md shadow-emerald-500/30' 
-                      : 'bg-black/70 text-slate-300 border-white/10'
-                  }`}>
-                    <Mic className={`w-3 h-3 ${localIsSpeaking ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
-                    <span>{localIsSpeaking ? 'Speaking...' : 'Mic Active'}</span>
-                  </div>
-                ) : (
-                  <div className="px-2 py-0.5 rounded-md bg-rose-950/80 backdrop-blur-sm text-[10px] font-bold text-rose-300 flex items-center gap-1 border border-rose-500/40">
-                    <MicOff className="w-3 h-3 text-rose-400" />
-                    <span>Muted</span>
-                  </div>
-                )}
-              </div>
+            {/* HOST VIEW: Candidate's Remote Video Feed */}
+            {userRole === 'HOST' && (
+              <>
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`w-full h-full object-cover ${!remoteVideoEnabled ? 'hidden' : ''}`}
+                />
 
-              {/* Remote Peer Voice Status on Candidate Screen */}
-              <div className="absolute bottom-2 right-2 flex items-center gap-2 z-10">
-                {remoteStream ? (
-                  <div className={`px-2.5 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-medium flex items-center gap-1.5 border ${
-                    remoteIsSpeaking 
-                      ? 'bg-cyan-950/90 text-cyan-200 border-cyan-400 shadow-md shadow-cyan-500/20' 
-                      : 'bg-black/70 text-slate-300 border-white/10'
-                  }`}>
-                    <Volume2 className={`w-3 h-3 ${remoteIsSpeaking ? 'text-cyan-400 animate-bounce' : 'text-slate-400'}`} />
-                    <span>Interviewer: {remoteParticipantName || 'Connected'}</span>
-                  </div>
-                ) : (
-                  <div className="px-2.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-medium text-slate-400 border border-white/10">
-                    <span>Waiting for Interviewer Audio...</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* HOST VIEW: Candidate's Remote Video Feed with Live Mute/Video Closed Alerts */}
-          {userRole === 'HOST' && (
-            <div className="relative rounded-2xl bg-black/60 border border-white/10 overflow-hidden aspect-[21/9] sm:aspect-[24/7] flex items-center justify-center shadow-lg">
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover ${!remoteVideoEnabled ? 'hidden' : ''}`}
-              />
-
-              {/* 1. If Candidate turned camera off */}
-              {!remoteVideoEnabled && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center bg-slate-950/90 border border-amber-500/30">
-                  <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
-                    <EyeOff className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-bold text-amber-300 block">
-                      ⚠️ Candidate Closed / Paused Camera
-                    </span>
-                    <span className="text-[11px] text-slate-400 block mt-0.5">
-                      {remoteParticipantName || 'Candidate'} turned off their webcam feed.
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* 2. If waiting for Candidate stream connection */}
-              {remoteVideoEnabled && !remoteStream && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-slate-400 text-xs p-4 text-center bg-slate-950/80">
-                  <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400">
-                    <UserCheck className="w-5 h-5 animate-pulse" />
-                  </div>
-                  <span className="font-semibold text-white">Connecting Candidate Live Stream...</span>
-                  <span className="text-[11px] text-slate-400">Negotiating WebRTC audio & video stream</span>
-                </div>
-              )}
-
-              {/* Live Status Indicators on Host screen */}
-              <div className="absolute bottom-2 left-2 flex items-center gap-2 z-10">
-                {remoteStream && remoteVideoEnabled && (
-                  <div className="px-2.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-medium text-white flex items-center gap-1.5 border border-white/10">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                    <span>Candidate Feed: {remoteParticipantName || 'Candidate Live'}</span>
-                  </div>
-                )}
-
-                {/* Candidate Voice Activity Indicator */}
-                {remoteStream && (
-                  <div className={`px-2 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-bold flex items-center gap-1 border transition-all ${
-                    remoteIsSpeaking 
-                      ? 'bg-cyan-950/90 text-cyan-300 border-cyan-400 shadow-md shadow-cyan-500/30' 
-                      : 'bg-black/70 text-slate-300 border-white/10'
-                  }`}>
-                    <Volume2 className={`w-3 h-3 ${remoteIsSpeaking ? 'text-cyan-400 animate-bounce' : 'text-slate-400'}`} />
-                    <span>{remoteIsSpeaking ? 'Candidate Speaking...' : 'Candidate Mic On'}</span>
-                  </div>
-                )}
-
-                {/* Candidate Mic Muted Warning on Host screen */}
-                {!remoteAudioEnabled && (
-                  <div className="px-2.5 py-0.5 rounded-md bg-rose-900/90 backdrop-blur-sm text-[10px] font-bold text-white flex items-center gap-1.5 border border-rose-500 animate-pulse">
-                    <VolumeX className="w-3.5 h-3.5 text-rose-300" />
-                    <span>Candidate Muted Mic</span>
-                  </div>
-                )}
-
-                {/* Candidate Camera Closed Warning Badge on Host screen */}
+                {/* If Candidate turned camera off */}
                 {!remoteVideoEnabled && (
-                  <div className="px-2.5 py-0.5 rounded-md bg-amber-900/90 backdrop-blur-sm text-[10px] font-bold text-amber-200 flex items-center gap-1.5 border border-amber-500">
-                    <EyeOff className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Camera Closed</span>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-3 text-center bg-slate-950/90 border border-amber-500/30">
+                    <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+                      <EyeOff className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-amber-300 block">
+                        ⚠️ Candidate Closed Camera
+                      </span>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        {remoteParticipantName || 'Candidate'} paused their webcam feed
+                      </span>
+                    </div>
                   </div>
                 )}
-              </div>
 
-              {/* Host audio speaking indicator */}
-              <div className={`absolute bottom-2 right-2 px-2.5 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-medium flex items-center gap-1.5 border z-10 transition-all ${
-                localIsSpeaking 
-                  ? 'bg-emerald-950/90 text-emerald-200 border-emerald-400 shadow-md shadow-emerald-500/20' 
-                  : 'bg-indigo-950/80 text-indigo-200 border-indigo-500/30'
-              }`}>
-                <Mic className={`w-3 h-3 ${localIsSpeaking ? 'text-emerald-400 animate-pulse' : 'text-indigo-400'}`} />
-                <span>Interviewer (You) • {localIsSpeaking ? 'Speaking...' : isAudioEnabled ? 'Voice Mic' : 'Muted'}</span>
-              </div>
-            </div>
-          )}
+                {/* If waiting for Candidate stream connection */}
+                {remoteVideoEnabled && !remoteStream && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-slate-400 text-xs p-3 text-center bg-slate-950/85">
+                    <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
+                      <UserCheck className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <span className="font-semibold text-white text-xs">Connecting Candidate Feed...</span>
+                    <span className="text-[10px] text-slate-400">Negotiating WebRTC audio/video</span>
+                  </div>
+                )}
+
+                {/* Live Status Indicators on Host screen */}
+                <div className="absolute bottom-2 left-2 flex items-center gap-1.5 z-10">
+                  {remoteStream && remoteVideoEnabled && (
+                    <div className="px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm text-[10px] font-medium text-white flex items-center gap-1 border border-white/10">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                      <span className="truncate max-w-[100px]">{remoteParticipantName || 'Candidate Live'}</span>
+                    </div>
+                  )}
+
+                  {/* Candidate Voice Activity */}
+                  {remoteStream && (
+                    <div className={`px-1.5 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-bold flex items-center gap-1 border transition-all ${
+                      remoteIsSpeaking 
+                        ? 'bg-cyan-950/90 text-cyan-300 border-cyan-400 shadow-md shadow-cyan-500/30' 
+                        : 'bg-black/75 text-slate-300 border-white/10'
+                    }`}>
+                      <Volume2 className={`w-2.5 h-2.5 ${remoteIsSpeaking ? 'text-cyan-400 animate-bounce' : 'text-slate-400'}`} />
+                      <span>{remoteIsSpeaking ? 'Speaking' : 'Mic On'}</span>
+                    </div>
+                  )}
+
+                  {!remoteAudioEnabled && (
+                    <div className="px-2 py-0.5 rounded-md bg-rose-900/90 backdrop-blur-sm text-[10px] font-bold text-white flex items-center gap-1 border border-rose-500 animate-pulse">
+                      <VolumeX className="w-3 h-3 text-rose-300" />
+                      <span>Muted</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Host audio speaking indicator */}
+                <div className={`absolute bottom-2 right-2 px-2 py-0.5 rounded-md backdrop-blur-sm text-[10px] font-medium flex items-center gap-1 border z-10 transition-all ${
+                  localIsSpeaking 
+                    ? 'bg-emerald-950/90 text-emerald-200 border-emerald-400 shadow-md shadow-emerald-500/20' 
+                    : 'bg-indigo-950/80 text-indigo-200 border-indigo-500/30'
+                }`}>
+                  <Mic className={`w-2.5 h-2.5 ${localIsSpeaking ? 'text-emerald-400 animate-pulse' : 'text-indigo-400'}`} />
+                  <span>You: {localIsSpeaking ? 'Speaking' : isAudioEnabled ? 'Mic On' : 'Muted'}</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Minimized Video Banner */
+        <div className="mx-3 my-2 p-2 rounded-xl bg-[#07090e] border border-white/10 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${remoteStream ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+            <span className="text-xs font-semibold text-slate-300">
+              {userRole === 'HOST' ? (remoteParticipantName || 'Candidate Audio Active') : 'Camera Minimized (Mic Active)'}
+            </span>
+          </div>
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+          >
+            Expand Video
+          </button>
         </div>
       )}
 
       {/* Media Controls Bar */}
-      <div className="flex items-center justify-between pt-1">
-        <div className="flex items-center gap-2">
+      <div className="px-3 py-1.5 border-b border-white/10 flex items-center justify-between shrink-0 bg-white/[0.01]">
+        <div className="flex items-center gap-1.5">
           {/* Mic Toggle */}
           <button
             onClick={toggleAudio}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
               isAudioEnabled
                 ? localIsSpeaking 
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20'
-                  : 'bg-white/10 hover:bg-white/15 text-white border border-white/10'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                  : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'
                 : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30'
             }`}
           >
             {isAudioEnabled ? (
-              <Mic className={`w-3.5 h-3.5 ${localIsSpeaking ? 'text-emerald-400 animate-pulse' : 'text-emerald-400'}`} />
+              <Mic className={`w-3 h-3 ${localIsSpeaking ? 'text-emerald-400 animate-pulse' : 'text-emerald-400'}`} />
             ) : (
-              <MicOff className="w-3.5 h-3.5 text-rose-400" />
+              <MicOff className="w-3 h-3 text-rose-400" />
             )}
-            <span>{isAudioEnabled ? (localIsSpeaking ? 'Microphone Active (Speaking)' : 'Microphone On') : 'Microphone Muted'}</span>
+            <span>{isAudioEnabled ? (localIsSpeaking ? 'Speaking' : 'Mic On') : 'Muted'}</span>
           </button>
 
-          {/* Camera Toggle (Only for Candidate) */}
+          {/* Camera Toggle (Candidate) */}
           {userRole === 'CANDIDATE' && (
             <button
               onClick={toggleVideo}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
                 isVideoEnabled
-                  ? 'bg-white/10 hover:bg-white/15 text-white border border-white/10'
+                  ? 'bg-white/5 hover:bg-white/10 text-white border border-white/10'
                   : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30'
               }`}
             >
-              {isVideoEnabled ? <Video className="w-3.5 h-3.5 text-emerald-400" /> : <VideoOff className="w-3.5 h-3.5 text-rose-400" />}
-              <span>{isVideoEnabled ? 'Camera On' : 'Camera Off'}</span>
+              {isVideoEnabled ? <Video className="w-3 h-3 text-emerald-400" /> : <VideoOff className="w-3 h-3 text-rose-400" />}
+              <span>{isVideoEnabled ? 'Cam On' : 'Cam Off'}</span>
             </button>
           )}
         </div>
 
-        <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2">
-          {remoteStream ? (
-            <span className="flex items-center gap-1 text-emerald-400">
-              <Activity className="w-3 h-3 animate-pulse" />
-              <span>Voice Connected</span>
-            </span>
-          ) : (
-            <span>{userRole === 'HOST' ? 'Host: Voice Mic' : 'Candidate: Camera + Mic'}</span>
-          )}
-          <span>•</span>
+        <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           <span>WebRTC P2P</span>
         </div>
+      </div>
+
+      {/* LOWER STUDIO PANEL: Information, Dossier & Proctoring */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+        {/* =============================================================== */}
+        {/* HOST / INTERVIEWER VIEW                                         */}
+        {/* =============================================================== */}
+        {userRole === 'HOST' && (
+          <>
+            {/* Candidate Dossier Card */}
+            <div className="p-3.5 rounded-2xl bg-[#0f1422] border border-white/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <GraduationCap className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white tracking-tight">Candidate Profile</h3>
+                    <span className="text-[10px] text-slate-400 font-medium">Verified Applicant</span>
+                  </div>
+                </div>
+
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold">
+                  {candidateUser ? 'CONNECTED' : 'WAITING'}
+                </span>
+              </div>
+
+              {/* Candidate Identity Details */}
+              <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-black/40 border border-white/5">
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-black shrink-0 shadow-md"
+                  style={{ backgroundColor: candidateUser?.color || '#72F000' }}
+                >
+                  {candidateUser?.name ? candidateUser.name.slice(0, 2).toUpperCase() : 'CD'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-white truncate">
+                    {candidateUser?.name || 'Waiting for Candidate...'}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">
+                    {candidateUser?.candidateProfile?.degree || candidateUser?.candidateProfile?.qualificationStatus || 'Applicant'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Skills Tag Pills */}
+              {candidateSkills.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Key Technical Skills
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                    {candidateSkills.map((skill, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300 text-[10px] font-mono"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Open Candidate Dossier Modal Button */}
+              {onOpenCandidateDossier && (
+                <button
+                  onClick={onOpenCandidateDossier}
+                  className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/30 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer group"
+                >
+                  <FileText className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <span>Inspect Full Dossier & Resume</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 ml-auto" />
+                </button>
+              )}
+            </div>
+
+            {/* Anti-Cheat Proctoring Monitor Card */}
+            <div className="p-3.5 rounded-2xl bg-[#0f1422] border border-white/10 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                  <ShieldAlert className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Anti-Cheat Integrity</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                  hostProctorCount === 0 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                    : 'bg-rose-500/10 text-rose-300 border-rose-500/30 animate-pulse'
+                }`}>
+                  {hostProctorCount === 0 ? 'Clean (0 Strikes)' : `${hostProctorCount} Strike${hostProctorCount === 1 ? '' : 's'}`}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-400 font-medium">
+                <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full ${remoteStream && remoteVideoEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                  <span className="truncate">Camera Proctoring</span>
+                </div>
+                <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full ${remoteStream ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                  <span className="truncate">Audio Sync</span>
+                </div>
+                <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="truncate">Keystroke P2P</span>
+                </div>
+                <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="truncate">Focus Tracking</span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* =============================================================== */}
+        {/* CANDIDATE VIEW                                                  */}
+        {/* =============================================================== */}
+        {userRole === 'CANDIDATE' && (
+          <>
+            {/* Live Proctoring Active Card */}
+            <div className="p-3.5 rounded-2xl bg-[#0f1422] border border-white/10 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Proctoring Active</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold">
+                  SECURE
+                </span>
+              </div>
+
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Your video, microphone, and code keystrokes are securely streaming to the interviewer.
+              </p>
+
+              <div className="space-y-1.5 text-[11px] text-slate-300">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>Keep your face centered inside camera frame</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>Do not switch browser tabs or windows</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>Speak clearly and articulate your reasoning</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Assessment Guidelines Card */}
+            <div className="p-3.5 rounded-2xl bg-[#0f1422] border border-white/10 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Interview Best Practices</span>
+              </div>
+              <ul className="text-[11px] text-slate-400 space-y-1.5 list-disc list-inside">
+                <li>Communicate your thought process aloud before writing code.</li>
+                <li>Clarify input bounds and potential edge cases.</li>
+                <li>Use the Execution Console below to run and test solutions.</li>
+              </ul>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

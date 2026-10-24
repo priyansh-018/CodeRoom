@@ -33,7 +33,8 @@ import {
   Play,
   CheckCircle2,
   Square,
-  Maximize2
+  Maximize2,
+  Video
 } from 'lucide-react';
 
 export const RoomPage: React.FC = () => {
@@ -64,6 +65,7 @@ export const RoomPage: React.FC = () => {
   const [currentUserSocketId, setCurrentUserSocketId] = useState<string>('');
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isCandidateDossierOpen, setIsCandidateDossierOpen] = useState<boolean>(false);
+  const [isStudioSidebarOpen, setIsStudioSidebarOpen] = useState<boolean>(true);
 
   // SQL Schema & Database Management state
   const [isSqlSchemaOpen, setIsSqlSchemaOpen] = useState<boolean>(false);
@@ -1552,24 +1554,14 @@ export const RoomPage: React.FC = () => {
         userRole={user.role}
         onOpenCandidateDossier={() => setIsCandidateDossierOpen(true)}
         hasCandidateInRoom={!!candidateUser}
+        isStudioSidebarOpen={isStudioSidebarOpen}
+        onToggleStudioSidebar={() => setIsStudioSidebarOpen(!isStudioSidebarOpen)}
       />
 
-      {/* Live WebRTC Audio/Video Conference Bar (Hidden in AI Solo Mode) */}
-      {!isAiSession && (
-        <VideoConference
-          roomId={roomId || 'default'}
-          userName={user.name}
-          userRole={user.role}
-          userAvatar={user.avatarUrl}
-          autoRequestMedia={true}
-          onStreamsReady={handleStreamsReady}
-        />
-      )}
-
-      {/* Main Studio Workspace */}
+      {/* Main Studio Workspace - Unified Single Frame Viewport */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left / Center: Editor + Execution Output Split */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-white/10">
+        <div className="flex-1 flex flex-col min-w-0 h-full border-r border-white/10">
           {/* Monaco Code Editor */}
           <div className="flex-1 min-h-0 relative">
             <CodeEditor
@@ -1583,7 +1575,7 @@ export const RoomPage: React.FC = () => {
           </div>
 
           {/* Terminal Console Panel */}
-          <div className="h-56 min-h-[160px] max-h-[400px]">
+          <div className="shrink-0">
             <ConsolePanel
               result={executionResult}
               isRunning={isRunning}
@@ -1592,8 +1584,39 @@ export const RoomPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Right: Live WebRTC Video Studio Sidebar (in peer interview mode) */}
+        {!isAiSession && (
+          isStudioSidebarOpen ? (
+            <div className="w-[360px] lg:w-[385px] xl:w-[415px] h-full border-l border-white/10 shrink-0 flex flex-col bg-[#0b0e17] overflow-hidden">
+              <VideoConference
+                roomId={roomId || 'default'}
+                userName={user.name}
+                userRole={user.role}
+                userAvatar={user.avatarUrl}
+                autoRequestMedia={true}
+                onStreamsReady={handleStreamsReady}
+                candidateUser={candidateUser}
+                onOpenCandidateDossier={() => setIsCandidateDossierOpen(true)}
+                hostProctorCount={hostProctorCount}
+                onToggleSidebar={() => setIsStudioSidebarOpen(false)}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsStudioSidebarOpen(true)}
+              className="w-9 h-full bg-[#0b0e17] hover:bg-[#121624] border-l border-white/10 flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0 py-4 select-none"
+              title="Expand Video & Studio Sidebar"
+            >
+              <Video className="w-4 h-4 text-emerald-400" />
+              <span className="text-[10px] font-mono [writing-mode:vertical-rl] tracking-wider uppercase font-bold text-slate-400">
+                Studio Video
+              </span>
+            </button>
+          )
+        )}
+
         {/* Right: AI Mock Interviewer Sidepanel (For Candidate Solo Practice only) */}
-        {user.role !== 'HOST' && isAiPanelOpen && (
+        {isAiSession && user.role !== 'HOST' && isAiPanelOpen && (
           <div className="w-96 bg-[#0E0E0E] text-white border-l border-white/10 flex flex-col p-4 space-y-4 overflow-y-auto font-['Plus_Jakarta_Sans',sans-serif] animate-in slide-in-from-right-4 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">

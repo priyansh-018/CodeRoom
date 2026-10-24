@@ -10,7 +10,8 @@ import {
   Square,
   Pencil,
   FileText,
-  Database
+  Database,
+  Video
 } from 'lucide-react';
 import type { SupportedLanguage, UserPresence, UserRole } from '../types';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
@@ -38,6 +39,8 @@ interface NavbarProps {
   userRole?: UserRole;
   onOpenCandidateDossier?: () => void;
   hasCandidateInRoom?: boolean;
+  isStudioSidebarOpen?: boolean;
+  onToggleStudioSidebar?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -62,7 +65,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   isAiSession,
   userRole,
   onOpenCandidateDossier,
-  hasCandidateInRoom
+  hasCandidateInRoom,
+  isStudioSidebarOpen,
+  onToggleStudioSidebar
 }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -276,8 +281,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           </>
         )}
 
+        {/* Studio Sidebar Toggle (Live Video & Candidate Dossier) */}
+        {!isAiSession && onToggleStudioSidebar && (
+          <button
+            onClick={onToggleStudioSidebar}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold border transition-all cursor-pointer ${
+              isStudioSidebarOpen
+                ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40 shadow-sm'
+                : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-300'
+            }`}
+            title={isStudioSidebarOpen ? 'Hide Video & Studio Sidebar' : 'Show Video & Studio Sidebar'}
+          >
+            <Video className="w-3.5 h-3.5 text-indigo-400" />
+            <span>{isStudioSidebarOpen ? 'Video Studio' : 'Show Video'}</span>
+          </button>
+        )}
+
         {/* AI Interviewer Toggle */}
-        {userRole !== 'HOST' && (
+        {userRole !== 'HOST' && isAiSession && (
           <button
             onClick={onToggleAiPanel}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold border transition-all cursor-pointer ${

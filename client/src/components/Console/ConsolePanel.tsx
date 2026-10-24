@@ -28,7 +28,7 @@ export const ConsolePanel: React.FC<ConsolePanelProps> = ({
   const isSuccess = result?.status?.id === 3;
 
   return (
-    <div className={`border-t border-white/10 bg-[#0d121f] flex flex-col transition-all duration-200 ${isCollapsed ? 'h-9' : 'h-64'}`}>
+    <div className={`border-t border-white/10 bg-[#07090e] flex flex-col transition-all duration-200 ${isCollapsed ? 'h-9' : 'h-56'}`}>
       {/* Console Header Bar */}
       <div className="h-9 px-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02] select-none">
         <div className="flex items-center gap-3">
