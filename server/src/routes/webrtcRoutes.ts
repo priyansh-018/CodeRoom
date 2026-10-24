@@ -14,16 +14,16 @@ const DEFAULT_ICE_SERVERS = [
 // Endpoint to dynamically provide ICE (STUN + TURN) servers
 router.get('/ice-servers', async (req, res) => {
   try {
-    const meteredApiKey = process.env.METERED_API_KEY;
-    const meteredAppName = process.env.METERED_APP_NAME;
+    const meteredApiKey = process.env.METERED_API_KEY || '94cc41a856d9b225516f6e158686e876a10e';
+    const meteredAppName = process.env.METERED_APP_NAME || 'code_room';
 
-    // 1. If Metered TURN credentials are provided in env
+    // 1. If Metered TURN credentials are provided or defaulted
     if (meteredApiKey && meteredAppName) {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 4000);
         const response = await fetch(
-          `https://code_room.metered.live/api/v1/turn/credentials?apiKey=94cc41a856d9b225516f6e158686e876a10e`,
+          `https://${meteredAppName}.metered.live/api/v1/turn/credentials?apiKey=${meteredApiKey}`,
           { signal: controller.signal }
         );
         clearTimeout(timeout);

@@ -74,6 +74,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
   const remoteStreamRef = useRef<MediaStream>(new MediaStream());
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const isNegotiatingRef = useRef<boolean>(false);
+  const remoteSocketIdRef = useRef<string | null>(null);
 
   const localAudioContextRef = useRef<AudioContext | null>(null);
   const remoteAudioContextRef = useRef<AudioContext | null>(null);
@@ -144,12 +145,27 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     }
   };
 
+  // Reset PeerConnection helper
+  const resetPeerConnection = useCallback(() => {
+    if (peerConnectionRef.current) {
+      try {
+        peerConnectionRef.current.close();
+      } catch (e) {
+        console.warn('Error closing peerConnection:', e);
+      }
+      peerConnectionRef.current = null;
+    }
+    isNegotiatingRef.current = false;
+    pendingIceCandidatesRef.current = [];
+  }, []);
+
   // Create PeerConnection
   const getOrCreatePeerConnection = useCallback(() => {
     if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'closed') {
       return peerConnectionRef.current;
     }
 
+    console.log('🔌 Initializing RTCPeerConnection with ICE servers:', iceServersRef.current.length);
     const pc = new RTCPeerConnection({
       iceServers: iceServersRef.current,
       iceCandidatePoolSize: 10
@@ -207,11 +223,12 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       }
     };
 
-    // Forward ICE Candidates
+    // Forward ICE Candidates directly to remote peer
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit('webrtc-signal', {
           roomId,
+          targetSocketId: remoteSocketIdRef.current || 'broadcast',
           signal: { type: 'candidate', candidate: event.candidate },
           senderName: userName,
           senderRole: userRole
@@ -227,6 +244,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     };
 
     pc.onsignalingstatechange = () => {
+      console.log('📡 WebRTC signalingState:', pc.signalingState);
       if (pc.signalingState === 'stable') {
         isNegotiatingRef.current = false;
       }
@@ -235,18 +253,20 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
     return pc;
   }, [roomId, userName, userRole, socket]);
 
-  // Initiate WebRTC Offer
+  // Initiate WebRTC Offer (Clean state recovery on conflict)
   const sendOffer = useCallback(async (targetSocketId?: string) => {
-    if (isNegotiatingRef.current) return;
+    const target = targetSocketId || remoteSocketIdRef.current || 'broadcast';
+    console.log('📤 [sendOffer] Candidate initiating offer for target:', target);
 
     try {
+      // If PC exists but is not in stable state (e.g. hung have-local-offer), cleanly reset
+      if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'stable') {
+        console.log('🔄 Peer connection signalingState not stable (' + peerConnectionRef.current.signalingState + '), resetting before offer...');
+        resetPeerConnection();
+      }
+
       isNegotiatingRef.current = true;
       const pc = getOrCreatePeerConnection();
-
-      if (pc.signalingState !== 'stable') {
-        isNegotiatingRef.current = false;
-        return;
-      }
 
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
@@ -256,7 +276,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
       socket.emit('webrtc-signal', {
         roomId,
-        targetSocketId: targetSocketId || 'broadcast',
+        targetSocketId: target,
         signal: offer,
         senderName: userName,
         senderRole: userRole
@@ -265,7 +285,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       console.error('WebRTC sendOffer error:', err);
       isNegotiatingRef.current = false;
     }
-  }, [getOrCreatePeerConnection, roomId, userName, userRole, socket]);
+  }, [getOrCreatePeerConnection, resetPeerConnection, roomId, userName, userRole, socket]);
 
   // Initialize Media Stream on mount
   useEffect(() => {
@@ -340,11 +360,15 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
           name: userName
         });
 
-        // If candidate, send offer after brief initialization
-        if (userRole === 'CANDIDATE') {
-          setTimeout(() => {
-            if (!isCancelled) sendOffer();
-          }, 400);
+        // If Host, prompt any already-present Candidate to send an offer
+        if (userRole === 'HOST') {
+          socket.emit('webrtc-signal', {
+            roomId,
+            targetSocketId: 'broadcast',
+            signal: { type: 'request-offer' },
+            senderName: userName,
+            senderRole: userRole
+          });
         }
 
       } catch (err: any) {
@@ -366,10 +390,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
         localStreamRef.current.getTracks().forEach((t) => t.stop());
         localStreamRef.current = null;
       }
-      if (peerConnectionRef.current) {
-        peerConnectionRef.current.close();
-        peerConnectionRef.current = null;
-      }
+      resetPeerConnection();
       if (localAudioContextRef.current) {
         localAudioContextRef.current.close().catch(() => {});
       }
@@ -377,7 +398,7 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
         remoteAudioContextRef.current.close().catch(() => {});
       }
     };
-  }, [roomId, userRole, autoRequestMedia, getOrCreatePeerConnection, sendOffer, userName, socket]);
+  }, [roomId, userRole, autoRequestMedia, getOrCreatePeerConnection, resetPeerConnection, userName, socket]);
 
   // Keep local stream connected to candidate preview
   useEffect(() => {
@@ -439,19 +460,40 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
   // Socket Signaling Listeners
   useEffect(() => {
     const handlePeerReady = (data: { socketId: string; role?: string; name?: string }) => {
+      console.log('👋 [WebRTC] Peer ready event received:', data);
+      remoteSocketIdRef.current = data.socketId;
       if (data.name) setRemoteParticipantName(data.name);
 
       if (userRole === 'CANDIDATE') {
         setTimeout(() => sendOffer(data.socketId), 300);
+      } else if (userRole === 'HOST') {
+        // Host asks Candidate to produce an offer
+        socket.emit('webrtc-signal', {
+          roomId,
+          targetSocketId: data.socketId,
+          signal: { type: 'request-offer' },
+          senderName: userName,
+          senderRole: userRole
+        });
       }
     };
 
     const handleUserJoined = (data: any) => {
       if (data.user?.socketId && data.user.socketId !== socket.id) {
+        console.log('👤 [WebRTC] User joined room:', data.user.name, data.user.socketId);
+        remoteSocketIdRef.current = data.user.socketId;
         if (data.user.name) setRemoteParticipantName(data.user.name);
 
         if (userRole === 'CANDIDATE') {
           setTimeout(() => sendOffer(data.user.socketId), 300);
+        } else if (userRole === 'HOST') {
+          socket.emit('webrtc-signal', {
+            roomId,
+            targetSocketId: data.user.socketId,
+            signal: { type: 'request-offer' },
+            senderName: userName,
+            senderRole: userRole
+          });
         }
       }
     };
@@ -460,8 +502,10 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       if (Array.isArray(data?.users)) {
         const otherUser = data.users.find((u: any) => u.socketId !== socket.id);
         if (otherUser) {
+          remoteSocketIdRef.current = otherUser.socketId;
           if (otherUser.name) setRemoteParticipantName(otherUser.name);
-          if (userRole === 'CANDIDATE' && !remoteStream) {
+
+          if (userRole === 'CANDIDATE' && !remoteStream && !isNegotiatingRef.current) {
             console.log('👥 Peer detected via presence-update, initiating offer to:', otherUser.name);
             setTimeout(() => sendOffer(otherUser.socketId), 400);
           }
@@ -498,19 +542,42 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
     const handleSignal = async (data: any) => {
       if (!data.signal) return;
+      if (data.fromSocketId) remoteSocketIdRef.current = data.fromSocketId;
       if (data.senderName) setRemoteParticipantName(data.senderName);
 
-      const pc = getOrCreatePeerConnection();
-
       try {
+        // 0. REQUEST-OFFER (Host asked Candidate to offer)
+        if (data.signal.type === 'request-offer') {
+          console.log('🔄 [WebRTC] Peer requested fresh offer from:', data.fromSocketId);
+          if (userRole === 'CANDIDATE') {
+            setTimeout(() => sendOffer(data.fromSocketId), 150);
+          }
+          return;
+        }
+
         // 1. RECEIVE OFFER -> CREATE ANSWER
         if (data.signal.type === 'offer') {
+          console.log('📥 [WebRTC] Received offer from:', data.fromSocketId);
+
+          // If Host's PC is currently in an unstable state, reset before answering
+          if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'stable') {
+            console.log('🔄 Resetting Host PC before accepting new offer...');
+            resetPeerConnection();
+          }
+
+          const pc = getOrCreatePeerConnection();
           await pc.setRemoteDescription(new RTCSessionDescription(data.signal));
 
-          // Drain queued ICE candidates
+          // Drain queued ICE candidates safely
           while (pendingIceCandidatesRef.current.length > 0) {
             const cand = pendingIceCandidatesRef.current.shift();
-            if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
+            if (cand) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(cand));
+              } catch (e) {
+                console.warn('Could not add queued ICE candidate:', e);
+              }
+            }
           }
 
           const answer = await pc.createAnswer();
@@ -526,19 +593,32 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
         }
         // 2. RECEIVE ANSWER -> SET REMOTE DESCRIPTION
         else if (data.signal.type === 'answer') {
-          if (pc.signalingState === 'have-local-offer') {
+          console.log('📥 [WebRTC] Received answer from:', data.fromSocketId);
+          const pc = peerConnectionRef.current;
+          if (pc && pc.signalingState === 'have-local-offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(data.signal));
 
             while (pendingIceCandidatesRef.current.length > 0) {
               const cand = pendingIceCandidatesRef.current.shift();
-              if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand));
+              if (cand) {
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(cand));
+                } catch (e) {
+                  console.warn('Could not add queued ICE candidate on answer:', e);
+                }
+              }
             }
           }
         }
         // 3. ICE CANDIDATES
         else if (data.signal.type === 'candidate' && data.signal.candidate) {
-          if (pc.remoteDescription && pc.remoteDescription.type) {
-            await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
+          const pc = peerConnectionRef.current;
+          if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
+            } catch (e) {
+              console.warn('Could not add live ICE candidate:', e);
+            }
           } else {
             pendingIceCandidatesRef.current.push(data.signal.candidate);
           }
@@ -563,23 +643,76 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
       socket.off('user-media-state', handleUserMediaState);
       socket.off('webrtc-signal', handleSignal);
     };
-  }, [roomId, userRole, userName, socket, getOrCreatePeerConnection, sendOffer]);
+  }, [roomId, userRole, userName, socket, getOrCreatePeerConnection, resetPeerConnection, sendOffer, remoteStream]);
 
-  // Toggle Video Track
-  const toggleVideo = () => {
-    if (localStreamRef.current && userRole === 'CANDIDATE') {
-      const videoTrack = localStreamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        const nextState = !videoTrack.enabled;
-        videoTrack.enabled = nextState;
-        setIsVideoEnabled(nextState);
+  // Toggle Video Track (Dynamically acquire camera if not present)
+  const toggleVideo = async () => {
+    if (userRole !== 'CANDIDATE') return;
+
+    if (!localStreamRef.current) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+          audio: isAudioEnabled
+        });
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+        setIsVideoEnabled(true);
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        sendOffer(remoteSocketIdRef.current || undefined);
         socket.emit('media-state-changed', {
           roomId,
-          videoEnabled: nextState,
+          videoEnabled: true,
           audioEnabled: isAudioEnabled,
           senderRole: userRole,
           senderName: userName
         });
+      } catch (e) {
+        console.error('Could not start video stream:', e);
+      }
+      return;
+    }
+
+    const videoTrack = localStreamRef.current.getVideoTracks()[0];
+    if (videoTrack) {
+      const nextState = !videoTrack.enabled;
+      videoTrack.enabled = nextState;
+      setIsVideoEnabled(nextState);
+      socket.emit('media-state-changed', {
+        roomId,
+        videoEnabled: nextState,
+        audioEnabled: isAudioEnabled,
+        senderRole: userRole,
+        senderName: userName
+      });
+    } else {
+      // Dynamic camera acquisition if initial setup was audio-only
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+        });
+        const newTrack = newStream.getVideoTracks()[0];
+        if (newTrack) {
+          localStreamRef.current.addTrack(newTrack);
+          setIsVideoEnabled(true);
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = localStreamRef.current;
+          }
+          const pc = peerConnectionRef.current;
+          if (pc) {
+            pc.addTrack(newTrack, localStreamRef.current);
+          }
+          sendOffer(remoteSocketIdRef.current || undefined);
+          socket.emit('media-state-changed', {
+            roomId,
+            videoEnabled: true,
+            audioEnabled: isAudioEnabled,
+            senderRole: userRole,
+            senderName: userName
+          });
+        }
+      } catch (err) {
+        console.warn('Could not acquire camera on toggle:', err);
       }
     }
   };
@@ -617,19 +750,26 @@ export const VideoConference: React.FC<VideoConferenceProps> = ({
 
   const reconnectCall = () => {
     console.log('🔄 Manually restarting WebRTC peer connection...');
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
+    resetPeerConnection();
     remoteStreamRef.current = new MediaStream();
     setRemoteStream(null);
+
     socket.emit('webrtc-ready', {
       roomId,
       role: userRole,
       name: userName
     });
-    if (userRole === 'CANDIDATE') {
-      setTimeout(() => sendOffer(), 400);
+
+    if (userRole === 'HOST') {
+      socket.emit('webrtc-signal', {
+        roomId,
+        targetSocketId: remoteSocketIdRef.current || 'broadcast',
+        signal: { type: 'request-offer' },
+        senderName: userName,
+        senderRole: userRole
+      });
+    } else if (userRole === 'CANDIDATE') {
+      setTimeout(() => sendOffer(remoteSocketIdRef.current || undefined), 300);
     }
   };
 

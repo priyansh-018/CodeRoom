@@ -66,6 +66,7 @@ async function createSmtpTransporter(port: number): Promise<Transporter | null> 
     host: resolvedIp,
     port,
     secure,
+    requireTLS: port === 587,
     auth: {
       user,
       pass
@@ -76,9 +77,9 @@ async function createSmtpTransporter(port: number): Promise<Transporter | null> 
       servername: host,
       rejectUnauthorized: false
     },
-    connectionTimeout: 4500, // 4.5s fail-fast if cloud host blocks the port
-    greetingTimeout: 4500,
-    socketTimeout: 6000
+    connectionTimeout: 10000, // 10s timeout to prevent premature abort on slower networks
+    greetingTimeout: 10000,
+    socketTimeout: 15000
   } as any);
 }
 
@@ -151,15 +152,64 @@ async function sendViaResend(options: EmailOptions): Promise<boolean> {
 }
 
 /**
+ * Send email via Brevo (Sendinblue) HTTP API (HTTPS port 443, free 300 emails/day to ANY domain)
+ */
+async function sendViaBrevo(options: EmailOptions): Promise<boolean> {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) return false;
+
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'priyansh191882@gmail.com';
+  const senderName = process.env.BREVO_SENDER_NAME || 'CodeRoom';
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+      'accept': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: options.to }],
+      subject: options.subject,
+      htmlContent: options.html,
+      textContent: options.text
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Brevo API failed (${res.status}): ${errText}`);
+  }
+
+  console.log(`✅ [Brevo API] Email sent to ${options.to}`);
+  return true;
+}
+
+/**
  * Universal email dispatcher:
- * 1. Tries Resend API (HTTPS port 443) if RESEND_API_KEY is defined
- * 2. Otherwise tries SMTP port 465 with IPv4
- * 3. Falls back to SMTP port 587 if port 465 times out
+ * 1. Tries Resend API if RESEND_API_KEY is defined
+ * 2. Tries Brevo API if BREVO_API_KEY is defined
+ * 3. Otherwise tries SMTP port 465 with IPv4
+ * 4. Falls back to SMTP port 587 if port 465 times out
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   // Option 1: Resend HTTP API
   if (process.env.RESEND_API_KEY) {
-    return await sendViaResend(options);
+    try {
+      return await sendViaResend(options);
+    } catch (resendErr: any) {
+      console.warn(`[emailService] Resend API failed (${resendErr.message}). Trying Brevo / SMTP...`);
+    }
+  }
+
+  // Option 2: Brevo HTTP API
+  if (process.env.BREVO_API_KEY) {
+    try {
+      return await sendViaBrevo(options);
+    } catch (brevoErr: any) {
+      console.warn(`[emailService] Brevo API failed (${brevoErr.message}). Falling back to SMTP...`);
+    }
   }
 
   const user = process.env.SMTP_USER;

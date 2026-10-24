@@ -83,5 +83,7 @@ const io = new socket_io_1.Server(server, {
 // Initialize socket handlers
 (0, roomHandler_js_1.setupRoomHandlers)(io);
 server.listen(PORT, () => {
-    console.log(`🚀 CodeRoom Server listening on http://localhost:${PORT}`);
+    const hostUrl = process.env.RENDER_EXTERNAL_URL || process.env.SERVER_URL || `http://localhost:${PORT}`;
+    console.log(`🚀 CodeRoom Server listening on port ${PORT}`);
+    console.log(`🌐 Server URL: ${hostUrl}`);
 });
